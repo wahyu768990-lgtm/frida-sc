@@ -8,6 +8,9 @@
 /* ========== UTILITIES ========== */
 
 var RANDOM = function() {};
+var ACTIVE_PROPERTY_MAP = {};
+var NATIVE_PROPERTY_POINTERS = {};
+var NATIVE_CALLBACK_REFS = [];
 
 function _randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -88,51 +91,28 @@ function getTimestamp() {
 /* ========== DEVICE DATABASE EXTENDED ========== */
 
 var DEVICE_DATABASE = {
-    "samsung": {
-        "s21": {
-            DEVICE: "d1", PRODUCT: "d1q", MODEL: "SM-G991B", MANUFACTURER: "Samsung",
-            BRAND: "samsung", FINGERPRINT: "samsung/d1q/d1:12/SPB1/G991BXXU1AUC2:user/release-keys",
-            HARDWARE: "d1", HOST: "lgefx02", USER: "dpi", DISPLAY: "SPB1.201120.019",
-            ID: "SPB1.201120.019", TAGS: "release-keys", TYPE: "user", BOARD: "d1",
-            BOOTLOADER: "G991BXXU1AUC2", RADIO: "exynos9830",
-            DEVICE_NAME: "Galaxy S21", DEVICE_FULL_NAME: "Samsung Galaxy S21",
-            PRODUCT_NAME: "d1q", SDK_INT: 31, RELEASE: "12",
-            FIRST_API_LEVEL: "31", SECURITY_PATCH: "2021-12-05", VNDK_VERSION: "31"
-        },
-        "s20": {
-            DEVICE: "y2q", PRODUCT: "y2q", MODEL: "SM-G980F", MANUFACTURER: "Samsung",
-            BRAND: "samsung", FINGERPRINT: "samsung/y2q/y2q:11/RP1A.200720.011/G980FXXU1ATJ1:user/release-keys",
-            HARDWARE: "y2q", HOST: "lgefx02", USER: "dpi", DISPLAY: "RP1A.200720.011",
-            ID: "RP1A.200720.011", TAGS: "release-keys", TYPE: "user", BOARD: "y2q",
-            BOOTLOADER: "G980FXXU1ATJ1", RADIO: "exynos990",
-            DEVICE_NAME: "Galaxy S20", DEVICE_FULL_NAME: "Samsung Galaxy S20",
-            PRODUCT_NAME: "y2q", SDK_INT: 30, RELEASE: "11",
-            FIRST_API_LEVEL: "29", SECURITY_PATCH: "2020-07-20", VNDK_VERSION: "30"
-        }
-    },
-    "xiaomi": {
-        "mi_11": {
-            DEVICE: "venus", PRODUCT: "venus", MODEL: "M2011J18C", MANUFACTURER: "Xiaomi",
-            BRAND: "xiaomi", FINGERPRINT: "Xiaomi/venus/venus:12/S1S1.211211.010/22.1.18:user/release-keys",
-            HARDWARE: "venus", HOST: "xmkbuild22", USER: "android-build", DISPLAY: "S1S1.211211.010",
-            ID: "S1S1.211211.010", TAGS: "release-keys", TYPE: "user", BOARD: "venus",
-            BOOTLOADER: "unknown", RADIO: "msm",
-            DEVICE_NAME: "Mi 11", DEVICE_FULL_NAME: "Xiaomi Mi 11",
-            PRODUCT_NAME: "venus", SDK_INT: 31, RELEASE: "12",
-            FIRST_API_LEVEL: "30", SECURITY_PATCH: "2021-12-10", VNDK_VERSION: "31"
+    "poco": {
+        "f3_android16": {
+            DEVICE: "alioth", PRODUCT: "alioth", MODEL: "M2012K11AG", MANUFACTURER: "Xiaomi",
+            BRAND: "POCO", FINGERPRINT: "POCO/alioth_global/alioth:16/BP2A.250605.031.A2/V816.0.3.0.WKHMIXM:user/release-keys",
+            HARDWARE: "qcom", HOST: "builder-miui", USER: "builder", DISPLAY: "BP2A.250605.031.A2 release-keys",
+            ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "kona",
+            BOOTLOADER: "unknown", RADIO: "2.5.c1-gl-21664-0605_0000_0000000",
+            DEVICE_NAME: "POCO F3", DEVICE_FULL_NAME: "POCO F3",
+            PRODUCT_NAME: "alioth_global", SDK_INT: 36, RELEASE: "16",
+            FIRST_API_LEVEL: "30", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36",
+            CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "adreno"
         }
     }
 };
 
 function _getRandomDevice() {
-    var brands = Object.keys(DEVICE_DATABASE);
-    var randomBrand = brands[_randomInt(0, brands.length - 1)];
-    var models = Object.keys(DEVICE_DATABASE[randomBrand]);
-    var randomModel = models[_randomInt(0, models.length - 1)];
+    // Keep a single coherent POCO profile so Build.*, ro.build.*, and
+    // Build.VERSION all describe the same Android 16 device.
     return {
-        data: DEVICE_DATABASE[randomBrand][randomModel],
-        brand: randomBrand,
-        model: randomModel
+        data: DEVICE_DATABASE.poco.f3_android16,
+        brand: "poco",
+        model: "f3_android16"
     };
 }
 
@@ -185,10 +165,32 @@ function createSpoofProfile(deviceData) {
         macBytes: macBytes,
         macString: _macBytesToString(macBytes),
         advertisingId: _randomUuid(),
+        appsFlyerId: _randomHex(16) + "-" + _randomHex(8),
+        installReferrer: "utm_source=google-play&utm_medium=organic&utm_campaign=organic",
+        userAgent: "Mozilla/5.0 (Linux; Android " + deviceData.RELEASE + "; " + deviceData.MODEL + ") AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/96.0." + _randomInt(1000, 4999) + "." + _randomInt(10, 199) + " Mobile Safari/537.36",
         bootTime: Date.now() - _randomInt(3600000, 604800000),
         firstInstallTime: Date.now() - _randomInt(86400000, 604800000),
         lastUpdateTime: Date.now(),
-        deviceName: deviceData.DEVICE_NAME || deviceData.DEVICE_FULL_NAME || deviceData.MODEL
+        deviceName: deviceData.DEVICE_NAME || deviceData.DEVICE_FULL_NAME || deviceData.MODEL,
+        wifiSsid: "AndroidWifi_" + _randomHex(4),
+        bssid: _macBytesToString(_randomMacBytes()),
+        ipv4: "192.168." + _randomInt(0, 254) + "." + _randomInt(2, 254),
+        asn: "AS24203",
+        networkOperator: "51011",
+        simOperator: "51011",
+        carrierName: "XL Axiata",
+        localeLanguage: "id",
+        localeCountry: "ID",
+        localeTag: "id-ID",
+        timezoneId: "Asia/Jakarta",
+        screenWidth: 1080,
+        screenHeight: 2400,
+        density: 2.75,
+        densityDpi: 440,
+        packageInstallSource: "com.android.vending",
+        playServicesVersionName: "24.20.16",
+        playServicesVersionCode: 242016000,
+        tlsSessionId: _randomHex(64)
     };
 }
 
@@ -266,10 +268,47 @@ function hookExtendedSystemProperties(deviceData, spoofProfile) {
             "ro.product.vendor.manufacturer": deviceData.MANUFACTURER,
             "ro.product.odm.manufacturer": deviceData.MANUFACTURER,
 
-            // Network Hostname
+            // Network Hostname / browser agent
             "net.hostname": deviceData.DEVICE,
-            "net.change": _randomHex(16)
+            "net.change": _randomHex(16),
+            "http.agent": spoofProfile.userAgent,
+            "ro.com.google.clientidbase": "android-" + deviceData.BRAND,
+            "ro.build.characteristics": "nosdcard",
+            "gsm.sim.operator.numeric": spoofProfile.simOperator,
+            "gsm.operator.numeric": spoofProfile.networkOperator,
+            "gsm.sim.operator.alpha": spoofProfile.carrierName,
+            "gsm.operator.alpha": spoofProfile.carrierName,
+            "wifi.interface": "wlan0",
+            "ro.product.cpu.abi": deviceData.CPU_ABI || "arm64-v8a",
+            "ro.product.cpu.abi2": deviceData.CPU_ABI2 || "",
+            "ro.product.cpu.abilist": "arm64-v8a,armeabi-v7a,armeabi",
+            "ro.product.cpu.abilist64": "arm64-v8a",
+            "ro.product.cpu.abilist32": "armeabi-v7a,armeabi",
+            "ro.hardware.egl": deviceData.EGL || "adreno",
+            "gsm.version.baseband": deviceData.RADIO,
+            "gsm.sim.operator.iso-country": spoofProfile.localeCountry.toLowerCase(),
+            "gsm.operator.iso-country": spoofProfile.localeCountry.toLowerCase(),
+            "gsm.operator.isroaming": "false,false",
+            "persist.radio.multisim.config": "dsds",
+            "persist.sys.locale": spoofProfile.localeTag,
+            "persist.sys.language": spoofProfile.localeLanguage,
+            "persist.sys.country": spoofProfile.localeCountry,
+            "persist.sys.timezone": spoofProfile.timezoneId,
+            "ro.product.bootimage.model": deviceData.MODEL,
+            "ro.product.bootimage.brand": deviceData.BRAND,
+            "ro.product.bootimage.device": deviceData.DEVICE,
+            "ro.product.bootimage.manufacturer": deviceData.MANUFACTURER,
+            "ro.product.bootimage.name": deviceData.PRODUCT_NAME,
+            "ro.product.system_ext.model": deviceData.MODEL,
+            "ro.product.system_ext.brand": deviceData.BRAND,
+            "ro.product.system_ext.device": deviceData.DEVICE,
+            "ro.product.system_ext.manufacturer": deviceData.MANUFACTURER,
+            "ro.product.system_ext.name": deviceData.PRODUCT_NAME,
+            "ro.boot.hardware": deviceData.HARDWARE,
+            "ro.boot.hardware.platform": deviceData.BOARD
         };
+
+        ACTIVE_PROPERTY_MAP = propertyMap;
 
         System.getProperty.overload("java.lang.String").implementation = function(key) {
             if (propertyMap[key] !== undefined) {
@@ -359,7 +398,8 @@ function deepSpoofBuildProperties(deviceData, spoofProfile) {
             "BOOTLOADER": deviceData.BOOTLOADER,
             "RADIO": deviceData.RADIO,
             "SERIAL": serialNo,
-            "IS_DEBUGGABLE": false
+            "CPU_ABI": deviceData.CPU_ABI || "arm64-v8a",
+            "CPU_ABI2": deviceData.CPU_ABI2 || ""
         };
 
         for (var fieldName in buildFields) {
@@ -389,6 +429,18 @@ function deepSpoofBuildProperties(deviceData, spoofProfile) {
             };
         } catch (e) {
             logDebug("Build.getSerial hook skipped: " + e.message);
+        }
+
+        try {
+            var supportedAbis = Java.array("java.lang.String", [deviceData.CPU_ABI || "arm64-v8a", "armeabi-v7a", "armeabi"]);
+            var supported64 = Java.array("java.lang.String", [deviceData.CPU_ABI || "arm64-v8a"]);
+            var supported32 = Java.array("java.lang.String", ["armeabi-v7a", "armeabi"]);
+            Build.SUPPORTED_ABIS.value = supportedAbis;
+            Build.SUPPORTED_64_BIT_ABIS.value = supported64;
+            Build.SUPPORTED_32_BIT_ABIS.value = supported32;
+            logDebug("✓ Build.SUPPORTED_ABIS = " + supportedAbis.join(","));
+        } catch (e) {
+            logDebug("Build SUPPORTED_ABIS hook skipped: " + e.message);
         }
 
         logSuccess("Build properties deep spoofed");
@@ -434,6 +486,7 @@ function hookDeviceSettings(deviceData, spoofProfile) {
         "device_name": spoofedDeviceName,
         "bluetooth_name": spoofedDeviceName,
         "wifi_p2p_device_name": spoofedDeviceName,
+        "packageinstaller_first_boot_time": String(spoofProfile.bootTime),
         "lock_screen_owner_info": "",
         "lock_screen_owner_info_enabled": "0"
     };
@@ -536,6 +589,39 @@ function spoofSecureSettings(deviceData, spoofProfile) {
             logDebug("Secure.getStringForUser hook skipped: " + e.message);
         }
 
+        try {
+            SettingsSecure.getInt.overload("android.content.ContentResolver", "java.lang.String").implementation = function(resolver, name) {
+                if (secureSpoofMap[name] !== undefined) {
+                    return parseInt(secureSpoofMap[name], 16) || 0;
+                }
+                return this.getInt(resolver, name);
+            };
+        } catch (e) {
+            logDebug("Secure.getInt hook skipped: " + e.message);
+        }
+
+        try {
+            SettingsSecure.getInt.overload("android.content.ContentResolver", "java.lang.String", "int").implementation = function(resolver, name, def) {
+                if (secureSpoofMap[name] !== undefined) {
+                    return parseInt(secureSpoofMap[name], 16) || def;
+                }
+                return this.getInt(resolver, name, def);
+            };
+        } catch (e) {
+            logDebug("Secure.getInt default hook skipped: " + e.message);
+        }
+
+        try {
+            SettingsSecure.getLong.overload("android.content.ContentResolver", "java.lang.String", "long").implementation = function(resolver, name, def) {
+                if (secureSpoofMap[name] !== undefined) {
+                    return parseInt(secureSpoofMap[name].substring(0, 12), 16) || def;
+                }
+                return this.getLong(resolver, name, def);
+            };
+        } catch (e) {
+            logDebug("Secure.getLong default hook skipped: " + e.message);
+        }
+
         logSuccess("Secure settings spoofed");
 
     } catch (err) {
@@ -578,13 +664,62 @@ function spoofTelephony(spoofProfile) {
             return imei;
         };
 
+        try {
+            TelephonyManager.getMeid.overload().implementation = function() {
+                return imei.substring(0, 14);
+            };
+        } catch (e) {
+            logDebug("Telephony getMeid hook skipped: " + e.message);
+        }
+
+        try {
+            TelephonyManager.getMeid.overload("int").implementation = function(slotIndex) {
+                return imei.substring(0, 14);
+            };
+        } catch (e) {
+            logDebug("Telephony getMeid(slot) hook skipped: " + e.message);
+        }
+
         TelephonyManager.getSubscriberId.overload().implementation = function() {
             return imsi;
         };
 
+        try {
+            TelephonyManager.getSubscriberId.overload("int").implementation = function(subId) {
+                return imsi;
+            };
+        } catch (e) {
+            logDebug("Telephony getSubscriberId(int) hook skipped: " + e.message);
+        }
+
         TelephonyManager.getSimSerialNumber.overload().implementation = function() {
             return iccid;
         };
+
+        try {
+            TelephonyManager.getSimSerialNumber.overload("int").implementation = function(subId) {
+                return iccid;
+            };
+        } catch (e) {
+            logDebug("Telephony getSimSerialNumber(int) hook skipped: " + e.message);
+        }
+
+        try {
+            TelephonyManager.getSimOperator.overload().implementation = function() {
+                return spoofProfile.simOperator;
+            };
+            TelephonyManager.getNetworkOperator.overload().implementation = function() {
+                return spoofProfile.networkOperator;
+            };
+            TelephonyManager.getSimOperatorName.overload().implementation = function() {
+                return spoofProfile.carrierName;
+            };
+            TelephonyManager.getNetworkOperatorName.overload().implementation = function() {
+                return spoofProfile.carrierName;
+            };
+        } catch (e) {
+            logDebug("Telephony operator hook skipped: " + e.message);
+        }
 
         logSuccess("Telephony spoofing complete");
 
@@ -659,6 +794,23 @@ function spoofAdvertisingId(spoofProfile) {
             return Info.$new(adid, false);
         };
 
+        try {
+            Info.getId.overload().implementation = function() {
+                logDebug("AdvertisingIdClient.Info.getId() -> " + adid);
+                return adid;
+            };
+        } catch (e) {
+            logDebug("AdvertisingIdClient.Info.getId hook skipped: " + e.message);
+        }
+
+        try {
+            Info.isLimitAdTrackingEnabled.overload().implementation = function() {
+                return false;
+            };
+        } catch (e) {
+            logDebug("AdvertisingIdClient.Info.isLimitAdTrackingEnabled hook skipped: " + e.message);
+        }
+
         logSuccess("Advertising ID spoofed: " + adid);
     } catch (err) {
         logDebug("Advertising ID (GMS not available): " + err.message);
@@ -697,29 +849,796 @@ function spoofBootTimestamps(spoofProfile) {
 /* ========== PACKAGE MANAGER SPOOFING (NEW) ========== */
 
 function spoofPackageManager(spoofProfile) {
-    logInfo("Spoofing Package Manager (installation dates)...");
+    logInfo("Spoofing PackageManager (install source, installer, install dates)...");
+
+    var installSource = spoofProfile.packageInstallSource;
+
+    function setJavaField(obj, name, value) {
+        try { obj[name].value = value; return; } catch (e) {}
+        try { obj[name] = value; } catch (ignored) {}
+    }
+
+    function isPlayPackage(packageName) {
+        return packageName === "com.google.android.gms" ||
+            packageName === "com.android.vending" ||
+            packageName === "com.google.android.gsf";
+    }
+
+    function fakeApplicationInfo(packageName) {
+        try {
+            var ApplicationInfo = Java.use("android.content.pm.ApplicationInfo");
+            var appInfo = ApplicationInfo.$new();
+            setJavaField(appInfo, "packageName", packageName);
+            setJavaField(appInfo, "name", packageName);
+            setJavaField(appInfo, "enabled", true);
+            setJavaField(appInfo, "flags", 1);
+            return appInfo;
+        } catch (e) {
+            logDebug("fakeApplicationInfo failed for " + packageName + ": " + e.message);
+            return null;
+        }
+    }
+
+    function fakePackageInfo(packageName) {
+        try {
+            var PackageInfo = Java.use("android.content.pm.PackageInfo");
+            var info = PackageInfo.$new();
+            setJavaField(info, "packageName", packageName);
+            setJavaField(info, "firstInstallTime", spoofProfile.firstInstallTime);
+            setJavaField(info, "lastUpdateTime", spoofProfile.lastUpdateTime);
+            setJavaField(info, "versionName", packageName === "com.google.android.gms" ? spoofProfile.playServicesVersionName : "1.0");
+            setJavaField(info, "versionCode", packageName === "com.google.android.gms" ? spoofProfile.playServicesVersionCode : 1);
+            setJavaField(info, "applicationInfo", fakeApplicationInfo(packageName));
+            return info;
+        } catch (e) {
+            logDebug("fakePackageInfo failed for " + packageName + ": " + e.message);
+            return null;
+        }
+    }
+
+    function normalizePackageInfo(info) {
+        if (info === null || info === undefined) {
+            return info;
+        }
+
+        try { info.firstInstallTime = spoofProfile.firstInstallTime; } catch (e) {}
+        try { info.lastUpdateTime = spoofProfile.lastUpdateTime; } catch (e) {}
+        try { info.installLocation = 0; } catch (e) {}
+        return info;
+    }
+
+    function normalizeApplicationInfo(info) {
+        if (info === null || info === undefined) {
+            return info;
+        }
+
+        try { info.enabled = true; } catch (e) {}
+        return info;
+    }
 
     try {
         var PackageManager = Java.use("android.content.pm.PackageManager");
-        var getPackageInfo = PackageManager.getPackageInfo;
 
-        getPackageInfo.overload("java.lang.String", "int").implementation = function(packageName, flags) {
-            var info = this.getPackageInfo(packageName, flags);
+        try {
+            var getPackageInfoInt = PackageManager.getPackageInfo.overload("java.lang.String", "int");
+            getPackageInfoInt.implementation = function(packageName, flags) {
+                try {
+                    return normalizePackageInfo(getPackageInfoInt.call(this, packageName, flags));
+                } catch (e) {
+                    if (isPlayPackage(packageName)) {
+                        return normalizePackageInfo(fakePackageInfo(packageName));
+                    }
+                    throw e;
+                }
+            };
+        } catch (e) {
+            logDebug("PackageManager.getPackageInfo(String,int) hook skipped: " + e.message);
+        }
 
-            // Spoof first install time to appear as pre-installed
-            try {
-                info.firstInstallTime = spoofProfile.firstInstallTime;
-                info.lastUpdateTime = spoofProfile.lastUpdateTime;
-            } catch(e) {}
+        try {
+            var PackageInfoFlags = Java.use("android.content.pm.PackageManager$PackageInfoFlags");
+            var getPackageInfoFlags = PackageManager.getPackageInfo.overload("java.lang.String", "android.content.pm.PackageManager$PackageInfoFlags");
+            getPackageInfoFlags.implementation = function(packageName, flags) {
+                try {
+                    return normalizePackageInfo(getPackageInfoFlags.call(this, packageName, flags));
+                } catch (e) {
+                    if (isPlayPackage(packageName)) {
+                        return normalizePackageInfo(fakePackageInfo(packageName));
+                    }
+                    throw e;
+                }
+            };
+        } catch (e) {
+            logDebug("PackageManager.getPackageInfo(String,PackageInfoFlags) hook skipped: " + e.message);
+        }
 
-            return info;
-        };
+        try {
+            var getApplicationInfoInt = PackageManager.getApplicationInfo.overload("java.lang.String", "int");
+            getApplicationInfoInt.implementation = function(packageName, flags) {
+                try {
+                    return normalizeApplicationInfo(getApplicationInfoInt.call(this, packageName, flags));
+                } catch (e) {
+                    if (isPlayPackage(packageName)) {
+                        return normalizeApplicationInfo(fakeApplicationInfo(packageName));
+                    }
+                    throw e;
+                }
+            };
+        } catch (e) {
+            logDebug("PackageManager.getApplicationInfo(String,int) hook skipped: " + e.message);
+        }
 
-        logSuccess("Package Manager spoofed");
+        try {
+            var ApplicationInfoFlags = Java.use("android.content.pm.PackageManager$ApplicationInfoFlags");
+            var getApplicationInfoFlags = PackageManager.getApplicationInfo.overload("java.lang.String", "android.content.pm.PackageManager$ApplicationInfoFlags");
+            getApplicationInfoFlags.implementation = function(packageName, flags) {
+                try {
+                    return normalizeApplicationInfo(getApplicationInfoFlags.call(this, packageName, flags));
+                } catch (e) {
+                    if (isPlayPackage(packageName)) {
+                        return normalizeApplicationInfo(fakeApplicationInfo(packageName));
+                    }
+                    throw e;
+                }
+            };
+        } catch (e) {
+            logDebug("PackageManager.getApplicationInfo(String,ApplicationInfoFlags) hook skipped: " + e.message);
+        }
+
+        try {
+            PackageManager.getInstallerPackageName.overload("java.lang.String").implementation = function(packageName) {
+                logDebug("PackageManager.getInstallerPackageName(" + packageName + ") -> " + installSource);
+                return installSource;
+            };
+        } catch (e) {
+            logDebug("PackageManager.getInstallerPackageName hook skipped: " + e.message);
+        }
+
+        try {
+            var getInstallSourceInfo = PackageManager.getInstallSourceInfo.overload("java.lang.String");
+            getInstallSourceInfo.implementation = function(packageName) {
+                logDebug("PackageManager.getInstallSourceInfo(" + packageName + ") -> original object with spoofed getters");
+                return getInstallSourceInfo.call(this, packageName);
+            };
+        } catch (e) {
+            logDebug("PackageManager.getInstallSourceInfo hook skipped: " + e.message);
+        }
+
+        try {
+            var InstallSourceInfo = Java.use("android.content.pm.InstallSourceInfo");
+
+            InstallSourceInfo.getInstallingPackageName.overload().implementation = function() {
+                return installSource;
+            };
+            InstallSourceInfo.getInitiatingPackageName.overload().implementation = function() {
+                return installSource;
+            };
+            InstallSourceInfo.getOriginatingPackageName.overload().implementation = function() {
+                return installSource;
+            };
+        } catch (e) {
+            logDebug("InstallSourceInfo getter hook skipped: " + e.message);
+        }
+
+        logSuccess("PackageManager spoofed: installer=" + installSource + ", firstInstallTime=" + spoofProfile.firstInstallTime);
     } catch (err) {
-        logDebug("PackageManager spoof: " + err.message);
+        logDebug("PackageManager spoof unavailable: " + err.message);
     }
 }
+
+/* ========== WEBVIEW / USER-AGENT SPOOFING ========== */
+
+function spoofWebViewUserAgent(deviceData, spoofProfile) {
+    logInfo("Spoofing WebView/User-Agent...");
+
+    var userAgent = spoofProfile.userAgent;
+
+    try {
+        var System = Java.use("java.lang.System");
+        System.setProperty("http.agent", userAgent);
+    } catch (e) {
+        logDebug("System http.agent set skipped: " + e.message);
+    }
+
+    try {
+        var WebSettings = Java.use("android.webkit.WebSettings");
+
+        try {
+            WebSettings.getDefaultUserAgent.overload("android.content.Context").implementation = function(context) {
+                logDebug("WebSettings.getDefaultUserAgent() -> " + userAgent);
+                return userAgent;
+            };
+        } catch (e) {
+            logDebug("WebSettings.getDefaultUserAgent hook skipped: " + e.message);
+        }
+
+        try {
+            WebSettings.getUserAgentString.overload().implementation = function() {
+                logDebug("WebSettings.getUserAgentString() -> " + userAgent);
+                return userAgent;
+            };
+        } catch (e) {
+            logDebug("WebSettings.getUserAgentString hook skipped: " + e.message);
+        }
+
+        try {
+            WebSettings.setUserAgentString.overload("java.lang.String").implementation = function(value) {
+                logDebug("WebSettings.setUserAgentString(" + value + ") forced -> " + userAgent);
+                return this.setUserAgentString(userAgent);
+            };
+        } catch (e) {
+            logDebug("WebSettings.setUserAgentString hook skipped: " + e.message);
+        }
+
+        logSuccess("WebView/User-Agent spoofed: " + userAgent);
+    } catch (err) {
+        logDebug("WebView/User-Agent hook unavailable: " + err.message);
+    }
+}
+
+/* ========== APPSFLYER SPOOFING ========== */
+
+function spoofAppsFlyer(spoofProfile) {
+    logInfo("Spoofing AppsFlyer identifiers...");
+
+    var appsFlyerId = spoofProfile.appsFlyerId;
+    var installSource = spoofProfile.packageInstallSource;
+
+    try {
+        var AppsFlyerLib = Java.use("com.appsflyer.AppsFlyerLib");
+
+        try {
+            AppsFlyerLib.getAppsFlyerUID.overload("android.content.Context").implementation = function(context) {
+                logDebug("AppsFlyerLib.getAppsFlyerUID() -> " + appsFlyerId);
+                return appsFlyerId;
+            };
+        } catch (e) {
+            logDebug("AppsFlyer getAppsFlyerUID hook skipped: " + e.message);
+        }
+
+        try {
+            AppsFlyerLib.setCollectAndroidID.overload("boolean").implementation = function(enabled) {
+                logDebug("AppsFlyer setCollectAndroidID(" + enabled + ") forced false");
+                return this.setCollectAndroidID(false);
+            };
+        } catch (e) {
+            logDebug("AppsFlyer setCollectAndroidID hook skipped: " + e.message);
+        }
+
+        try {
+            AppsFlyerLib.setCollectIMEI.overload("boolean").implementation = function(enabled) {
+                logDebug("AppsFlyer setCollectIMEI(" + enabled + ") forced false");
+                return this.setCollectIMEI(false);
+            };
+        } catch (e) {
+            logDebug("AppsFlyer setCollectIMEI hook skipped: " + e.message);
+        }
+
+        logSuccess("AppsFlyer spoofed: " + appsFlyerId + " via " + installSource);
+    } catch (err) {
+        logDebug("AppsFlyer SDK hook unavailable: " + err.message);
+    }
+}
+
+/* ========== INSTALL REFERRER SPOOFING ========== */
+
+function spoofInstallReferrer(spoofProfile) {
+    logInfo("Spoofing Install Referrer...");
+
+    var referrer = spoofProfile.installReferrer;
+    var clickTs = Math.floor((spoofProfile.firstInstallTime - _randomInt(60000, 3600000)) / 1000);
+    var installTs = Math.floor(spoofProfile.firstInstallTime / 1000);
+
+    try {
+        var ReferrerDetails = Java.use("com.android.installreferrer.api.ReferrerDetails");
+
+        try {
+            ReferrerDetails.getInstallReferrer.overload().implementation = function() {
+                logDebug("ReferrerDetails.getInstallReferrer() -> " + referrer);
+                return referrer;
+            };
+        } catch (e) {
+            logDebug("InstallReferrer getInstallReferrer hook skipped: " + e.message);
+        }
+
+        try {
+            ReferrerDetails.getReferrerClickTimestampSeconds.overload().implementation = function() {
+                return clickTs;
+            };
+        } catch (e) {
+            logDebug("InstallReferrer click timestamp hook skipped: " + e.message);
+        }
+
+        try {
+            ReferrerDetails.getInstallBeginTimestampSeconds.overload().implementation = function() {
+                return installTs;
+            };
+        } catch (e) {
+            logDebug("InstallReferrer install timestamp hook skipped: " + e.message);
+        }
+
+        try {
+            ReferrerDetails.getGooglePlayInstantParam.overload().implementation = function() {
+                return false;
+            };
+        } catch (e) {
+            logDebug("InstallReferrer instant param hook skipped: " + e.message);
+        }
+
+        logSuccess("Install Referrer spoofed: " + referrer);
+    } catch (err) {
+        logDebug("Install Referrer API hook unavailable: " + err.message);
+    }
+}
+
+/* ========== NETWORK INFO SPOOFING ========== */
+
+function spoofNetworkInfo(spoofProfile) {
+    logInfo("Spoofing network info...");
+
+    var macString = spoofProfile.macString;
+    var bssid = spoofProfile.bssid;
+    var ssid = '"' + spoofProfile.wifiSsid + '"';
+    var ipParts = spoofProfile.ipv4.split(".");
+    var ipInt = (parseInt(ipParts[0]) & 0xff) | ((parseInt(ipParts[1]) & 0xff) << 8) | ((parseInt(ipParts[2]) & 0xff) << 16) | ((parseInt(ipParts[3]) & 0xff) << 24);
+
+    try {
+        var WifiInfo = Java.use("android.net.wifi.WifiInfo");
+
+        try {
+            WifiInfo.getMacAddress.overload().implementation = function() {
+                logDebug("WifiInfo.getMacAddress() -> " + macString);
+                return macString;
+            };
+        } catch (e) {
+            logDebug("WifiInfo.getMacAddress hook skipped: " + e.message);
+        }
+
+        try {
+            WifiInfo.getBSSID.overload().implementation = function() {
+                logDebug("WifiInfo.getBSSID() -> " + bssid);
+                return bssid;
+            };
+        } catch (e) {
+            logDebug("WifiInfo.getBSSID hook skipped: " + e.message);
+        }
+
+        try {
+            WifiInfo.getSSID.overload().implementation = function() {
+                logDebug("WifiInfo.getSSID() -> " + ssid);
+                return ssid;
+            };
+        } catch (e) {
+            logDebug("WifiInfo.getSSID hook skipped: " + e.message);
+        }
+
+        try {
+            WifiInfo.getIpAddress.overload().implementation = function() {
+                return ipInt;
+            };
+        } catch (e) {
+            logDebug("WifiInfo.getIpAddress hook skipped: " + e.message);
+        }
+    } catch (err) {
+        logDebug("WifiInfo hook unavailable: " + err.message);
+    }
+
+    try {
+        var TelephonyManager = Java.use("android.telephony.TelephonyManager");
+
+        TelephonyManager.getNetworkOperator.overload().implementation = function() {
+            return spoofProfile.networkOperator;
+        };
+        TelephonyManager.getSimOperator.overload().implementation = function() {
+            return spoofProfile.simOperator;
+        };
+        TelephonyManager.getNetworkOperatorName.overload().implementation = function() {
+            return spoofProfile.carrierName;
+        };
+        TelephonyManager.getSimOperatorName.overload().implementation = function() {
+            return spoofProfile.carrierName;
+        };
+        TelephonyManager.getNetworkCountryIso.overload().implementation = function() {
+            return spoofProfile.localeCountry.toLowerCase();
+        };
+        TelephonyManager.getSimCountryIso.overload().implementation = function() {
+            return spoofProfile.localeCountry.toLowerCase();
+        };
+    } catch (err) {
+        logDebug("Telephony network info hook unavailable: " + err.message);
+    }
+
+    logSuccess("Network info spoofed: SSID=" + ssid + ", BSSID=" + bssid + ", IP=" + spoofProfile.ipv4);
+}
+
+/* ========== NATIVE / JNI SYSTEM PROPERTY SPOOFING ========== */
+
+function hookNativeSystemProperties() {
+    logInfo("Hooking native/JNI system properties...");
+
+    function findNativeExport(moduleName, exportName) {
+        try {
+            if (typeof Module.findExportByName === "function") {
+                var legacyPtr = Module.findExportByName(moduleName, exportName);
+                if (legacyPtr !== null) {
+                    return legacyPtr;
+                }
+            }
+        } catch (e) {
+            logDebug("Module.findExportByName failed for " + exportName + ": " + e.message);
+        }
+
+        try {
+            if (typeof Module.findGlobalExportByName === "function") {
+                var globalPtr = Module.findGlobalExportByName(exportName);
+                if (globalPtr !== null) {
+                    return globalPtr;
+                }
+            }
+        } catch (e) {
+            logDebug("Module.findGlobalExportByName failed for " + exportName + ": " + e.message);
+        }
+
+        try {
+            if (typeof Module.getGlobalExportByName === "function") {
+                var strictGlobalPtr = Module.getGlobalExportByName(exportName);
+                if (strictGlobalPtr !== null) {
+                    return strictGlobalPtr;
+                }
+            }
+        } catch (e) {
+            logDebug("Module.getGlobalExportByName failed for " + exportName + ": " + e.message);
+        }
+
+        try {
+            if (moduleName && typeof Process.getModuleByName === "function") {
+                var moduleObj = Process.getModuleByName(moduleName);
+                if (moduleObj && typeof moduleObj.findExportByName === "function") {
+                    var modulePtr = moduleObj.findExportByName(exportName);
+                    if (modulePtr !== null) {
+                        return modulePtr;
+                    }
+                }
+                if (moduleObj && typeof moduleObj.getExportByName === "function") {
+                    try {
+                        var strictModulePtr = moduleObj.getExportByName(exportName);
+                        if (strictModulePtr !== null) {
+                            return strictModulePtr;
+                        }
+                    } catch (strictModuleErr) {}
+                }
+                if (moduleObj && typeof moduleObj.enumerateExports === "function") {
+                    var exports = moduleObj.enumerateExports();
+                    for (var i = 0; i < exports.length; i++) {
+                        if (exports[i].name === exportName) {
+                            return exports[i].address;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            logDebug("Process module export lookup failed for " + exportName + ": " + e.message);
+        }
+
+        return null;
+    }
+
+    function spoofedValueForKey(key) {
+        if (!key) {
+            return undefined;
+        }
+        return ACTIVE_PROPERTY_MAP[key];
+    }
+
+    function attachPropertyGet(propertyGet) {
+        Interceptor.attach(propertyGet, {
+            onEnter: function(args) {
+                try {
+                    this.key = args[0].readCString();
+                    this.valuePtr = args[1];
+                } catch (e) {
+                    this.key = null;
+                    this.valuePtr = null;
+                }
+            },
+            onLeave: function(retval) {
+                var spoofed = spoofedValueForKey(this.key);
+                if (spoofed !== undefined && this.valuePtr !== null) {
+                    var spoofedString = String(spoofed);
+                    this.valuePtr.writeUtf8String(spoofedString);
+                    retval.replace(spoofedString.length);
+                    logDebug("native __system_property_get(" + this.key + ") -> " + spoofedString);
+                }
+            }
+        });
+    }
+
+    function attachPropertyFind(propertyFind) {
+        Interceptor.attach(propertyFind, {
+            onEnter: function(args) {
+                try {
+                    this.key = args[0].readCString();
+                } catch (e) {
+                    this.key = null;
+                }
+            },
+            onLeave: function(retval) {
+                if (this.key && !retval.isNull()) {
+                    NATIVE_PROPERTY_POINTERS[retval.toString()] = this.key;
+                }
+            }
+        });
+    }
+
+    function attachPropertyRead(propertyRead) {
+        Interceptor.attach(propertyRead, {
+            onEnter: function(args) {
+                this.propInfo = args[0];
+                this.namePtr = args[1];
+                this.valuePtr = args[2];
+            },
+            onLeave: function(retval) {
+                var key = NATIVE_PROPERTY_POINTERS[this.propInfo.toString()];
+                var spoofed = spoofedValueForKey(key);
+                if (spoofed !== undefined && this.valuePtr !== null) {
+                    var spoofedString = String(spoofed);
+                    if (this.namePtr !== null) {
+                        this.namePtr.writeUtf8String(key);
+                    }
+                    this.valuePtr.writeUtf8String(spoofedString);
+                    retval.replace(spoofedString.length);
+                    logDebug("native __system_property_read(" + key + ") -> " + spoofedString);
+                }
+            }
+        });
+    }
+
+    function attachPropertyReadCallback(propertyReadCallback) {
+        Interceptor.attach(propertyReadCallback, {
+            onEnter: function(args) {
+                var propInfo = args[0];
+                var key = NATIVE_PROPERTY_POINTERS[propInfo.toString()];
+                var spoofed = spoofedValueForKey(key);
+                if (spoofed === undefined) {
+                    return;
+                }
+
+                try {
+                    var originalCallback = args[1];
+                    var callbackFn = new NativeFunction(originalCallback, "void", ["pointer", "pointer", "pointer", "uint"]);
+                    var namePtr = Memory.allocUtf8String(key);
+                    var valuePtr = Memory.allocUtf8String(String(spoofed));
+                    var replacement = new NativeCallback(function(cookie, name, value, serial) {
+                        callbackFn(cookie, namePtr, valuePtr, serial);
+                    }, "void", ["pointer", "pointer", "pointer", "uint"]);
+                    NATIVE_CALLBACK_REFS.push(replacement, namePtr, valuePtr);
+                    args[1] = replacement;
+                    logDebug("native __system_property_read_callback(" + key + ") -> " + spoofed);
+                } catch (e) {
+                    logDebug("native read_callback replacement failed: " + e.message);
+                }
+            }
+        });
+    }
+
+    var hooked = 0;
+
+    try {
+        var propertyGet = findNativeExport(null, "__system_property_get") || findNativeExport("libc.so", "__system_property_get");
+        if (propertyGet !== null) {
+            attachPropertyGet(propertyGet);
+            hooked++;
+        }
+
+        var propertyFind = findNativeExport(null, "__system_property_find") || findNativeExport("libc.so", "__system_property_find");
+        if (propertyFind !== null) {
+            attachPropertyFind(propertyFind);
+            hooked++;
+        }
+
+        var propertyRead = findNativeExport(null, "__system_property_read") || findNativeExport("libc.so", "__system_property_read");
+        if (propertyRead !== null) {
+            attachPropertyRead(propertyRead);
+            hooked++;
+        }
+
+        var propertyReadCallback = findNativeExport(null, "__system_property_read_callback") || findNativeExport("libc.so", "__system_property_read_callback");
+        if (propertyReadCallback !== null) {
+            attachPropertyReadCallback(propertyReadCallback);
+            hooked++;
+        }
+
+        if (hooked === 0) {
+            logDebug("No native system property exports found");
+            return;
+        }
+
+        logSuccess("Native/JNI system properties hooked (" + hooked + " exports)");
+    } catch (err) {
+        logDebug("Native/JNI property hook unavailable: " + err.message);
+    }
+}
+
+/* ========== LOCALE / TIMEZONE SPOOFING ========== */
+
+function spoofLocaleTimezone(spoofProfile) {
+    logInfo("Spoofing locale/timezone...");
+
+    // Do not override Locale.getDefault()/TimeZone.getDefault() directly. On
+    // recent Android/Frida combinations returning a retained wrapper from a
+    // static method hook can trip Frida's return-type validation and leave
+    // framework LocaleList state null, crashing resource inflation. Setting
+    // the framework defaults is safer and still updates Java callers.
+    try {
+        var Locale = Java.use("java.util.Locale");
+        var spoofLocale = Locale.$new(spoofProfile.localeLanguage, spoofProfile.localeCountry);
+        Locale.setDefault.overload("java.util.Locale").call(Locale, spoofLocale);
+
+        try {
+            var LocaleList = Java.use("android.os.LocaleList");
+            var spoofLocaleList = LocaleList.forLanguageTags(spoofProfile.localeTag);
+            LocaleList.setDefault.overload("android.os.LocaleList").call(LocaleList, spoofLocaleList);
+        } catch (e) {
+            logDebug("LocaleList.setDefault hook skipped: " + e.message);
+        }
+    } catch (err) {
+        logDebug("Locale default update unavailable: " + err.message);
+    }
+
+    try {
+        var TimeZone = Java.use("java.util.TimeZone");
+        var spoofTimeZone = TimeZone.getTimeZone(spoofProfile.timezoneId);
+        TimeZone.setDefault.overload("java.util.TimeZone").call(TimeZone, spoofTimeZone);
+
+        logSuccess("Locale/timezone spoofed: " + spoofProfile.localeTag + " / " + spoofProfile.timezoneId);
+    } catch (err) {
+        logDebug("Timezone default update unavailable: " + err.message);
+    }
+}
+
+/* ========== SCREEN METRICS SPOOFING ========== */
+
+function spoofScreenMetrics(spoofProfile) {
+    logInfo("Spoofing screen metrics...");
+
+    function applyMetrics(metrics) {
+        if (metrics === null || metrics === undefined) {
+            return metrics;
+        }
+
+        try { metrics.widthPixels.value = spoofProfile.screenWidth; } catch (e) { try { metrics.widthPixels = spoofProfile.screenWidth; } catch (ignored) {} }
+        try { metrics.heightPixels.value = spoofProfile.screenHeight; } catch (e) { try { metrics.heightPixels = spoofProfile.screenHeight; } catch (ignored) {} }
+        try { metrics.density.value = spoofProfile.density; } catch (e) { try { metrics.density = spoofProfile.density; } catch (ignored) {} }
+        try { metrics.scaledDensity.value = spoofProfile.density; } catch (e) { try { metrics.scaledDensity = spoofProfile.density; } catch (ignored) {} }
+        try { metrics.densityDpi.value = spoofProfile.densityDpi; } catch (e) { try { metrics.densityDpi = spoofProfile.densityDpi; } catch (ignored) {} }
+        try { metrics.xdpi.value = spoofProfile.densityDpi; } catch (e) { try { metrics.xdpi = spoofProfile.densityDpi; } catch (ignored) {} }
+        try { metrics.ydpi.value = spoofProfile.densityDpi; } catch (e) { try { metrics.ydpi = spoofProfile.densityDpi; } catch (ignored) {} }
+        return metrics;
+    }
+
+    try {
+        var Resources = Java.use("android.content.res.Resources");
+        var getDisplayMetrics = Resources.getDisplayMetrics.overload();
+        getDisplayMetrics.implementation = function() {
+            return applyMetrics(getDisplayMetrics.call(this));
+        };
+    } catch (err) {
+        logDebug("Resources.getDisplayMetrics hook unavailable: " + err.message);
+    }
+
+    try {
+        var Display = Java.use("android.view.Display");
+
+        try {
+            var getMetrics = Display.getMetrics.overload("android.util.DisplayMetrics");
+            getMetrics.implementation = function(outMetrics) {
+                getMetrics.call(this, outMetrics);
+                applyMetrics(outMetrics);
+            };
+        } catch (e) {
+            logDebug("Display.getMetrics hook skipped: " + e.message);
+        }
+
+        try {
+            var getRealMetrics = Display.getRealMetrics.overload("android.util.DisplayMetrics");
+            getRealMetrics.implementation = function(outMetrics) {
+                getRealMetrics.call(this, outMetrics);
+                applyMetrics(outMetrics);
+            };
+        } catch (e) {
+            logDebug("Display.getRealMetrics hook skipped: " + e.message);
+        }
+    } catch (err) {
+        logDebug("Display metrics hook unavailable: " + err.message);
+    }
+
+    logSuccess("Screen metrics spoofed: " + spoofProfile.screenWidth + "x" + spoofProfile.screenHeight + " @ " + spoofProfile.densityDpi + "dpi");
+}
+
+/* ========== PLAY SERVICES STATE SPOOFING ========== */
+
+function spoofPlayServicesState(spoofProfile) {
+    logInfo("Spoofing Play Services availability state...");
+
+    function hookAvailabilityClass(className) {
+        try {
+            var Klass = Java.use(className);
+
+            try {
+                Klass.isGooglePlayServicesAvailable.overload("android.content.Context").implementation = function(context) {
+                    logDebug(className + ".isGooglePlayServicesAvailable(context) -> SUCCESS");
+                    return 0;
+                };
+            } catch (e) {
+                logDebug(className + " one-arg availability hook skipped: " + e.message);
+            }
+
+            try {
+                Klass.isGooglePlayServicesAvailable.overload("android.content.Context", "int").implementation = function(context, minApkVersion) {
+                    logDebug(className + ".isGooglePlayServicesAvailable(context, " + minApkVersion + ") -> SUCCESS");
+                    return 0;
+                };
+            } catch (e) {
+                logDebug(className + " two-arg availability hook skipped: " + e.message);
+            }
+        } catch (err) {
+            logDebug(className + " unavailable: " + err.message);
+        }
+    }
+
+    hookAvailabilityClass("com.google.android.gms.common.GoogleApiAvailability");
+    hookAvailabilityClass("com.google.android.gms.common.GoogleApiAvailabilityLight");
+    hookAvailabilityClass("com.google.android.gms.common.GooglePlayServicesUtil");
+    hookAvailabilityClass("com.google.android.gms.common.GooglePlayServicesUtilLight");
+
+    logSuccess("Play Services state spoofed as available");
+}
+
+/* ========== TLS / COOKIE HISTORY RESET (CLIENT-SIDE ONLY) ========== */
+
+function resetClientSessionHistory(spoofProfile) {
+    logInfo("Resetting client TLS/session/cookie history hooks...");
+
+    try {
+        var CookieManager = Java.use("android.webkit.CookieManager");
+
+        try {
+            CookieManager.hasCookies.overload().implementation = function() {
+                return false;
+            };
+        } catch (e) {
+            logDebug("CookieManager.hasCookies hook skipped: " + e.message);
+        }
+
+        try {
+            CookieManager.getCookie.overload("java.lang.String").implementation = function(url) {
+                logDebug("CookieManager.getCookie(" + url + ") -> null");
+                return null;
+            };
+        } catch (e) {
+            logDebug("CookieManager.getCookie hook skipped: " + e.message);
+        }
+    } catch (err) {
+        logDebug("CookieManager hook unavailable: " + err.message);
+    }
+
+    try {
+        var SSLSession = Java.use("javax.net.ssl.SSLSession");
+        SSLSession.getId.overload().implementation = function() {
+            var bytes = [];
+            for (var i = 0; i < spoofProfile.tlsSessionId.length; i += 2) {
+                bytes.push(parseInt(spoofProfile.tlsSessionId.substring(i, i + 2), 16));
+            }
+            return Java.array("byte", bytes);
+        };
+    } catch (err) {
+        logDebug("SSLSession.getId hook unavailable: " + err.message);
+    }
+
+    logWarn("Server-side risk tokens cannot be rewritten from Frida; only client-side observable state was normalized.");
+    logSuccess("Client TLS/session/cookie hooks installed");
+}
+
 
 /* ========== INITIALIZATION (NEW DEVICE MARKER) ========== */
 
@@ -845,6 +1764,15 @@ Java.perform(function () {
         hookExtendedSystemProperties(deviceData, spoofProfile);
         console.log("");
 
+        hookNativeSystemProperties();
+        console.log("");
+
+        spoofLocaleTimezone(spoofProfile);
+        console.log("");
+
+        spoofScreenMetrics(spoofProfile);
+        console.log("");
+
         hookDeviceSettings(deviceData, spoofProfile);
         console.log("");
 
@@ -861,6 +1789,24 @@ Java.perform(function () {
         console.log("");
 
         spoofAdvertisingId(spoofProfile);
+        console.log("");
+
+        spoofAppsFlyer(spoofProfile);
+        console.log("");
+
+        spoofInstallReferrer(spoofProfile);
+        console.log("");
+
+        spoofWebViewUserAgent(deviceData, spoofProfile);
+        console.log("");
+
+        spoofNetworkInfo(spoofProfile);
+        console.log("");
+
+        spoofPlayServicesState(spoofProfile);
+        console.log("");
+
+        resetClientSessionHistory(spoofProfile);
         console.log("");
 
         spoofPackageManager(spoofProfile);
