@@ -2550,6 +2550,83 @@ function setupRootDetectionBypass() {
     logSuccess("Android Root Detection Bypass setup complete!");
 }
 
+
+/* ========== SSL PINNING BYPASS ========== */
+function setupSSLPinningBypass() {
+    logInfo("Setting up SSL Pinning Bypass...");
+
+    // Bypass X509TrustManager
+    try {
+        var X509TrustManager = Java.use('javax.net.ssl.X509TrustManager');
+        var SSLContext = Java.use('javax.net.ssl.SSLContext');
+
+        // Create a custom TrustManager that trusts everything
+        var TrustManager = Java.registerClass({
+            name: 'dev.rikka.tools.DummyTrustManager',
+            implements: [X509TrustManager],
+            methods: {
+                checkClientTrusted: function (chain, authType) { },
+                checkServerTrusted: function (chain, authType) { },
+                getAcceptedIssuers: function () { return []; }
+            }
+        });
+
+        // Hook SSLContext.init to inject our dummy TrustManager
+        var TrustManagers = [TrustManager.$new()];
+        var SSLContext_init = SSLContext.init.overload(
+            '[Ljavax.net.ssl.KeyManager;', '[Ljavax.net.ssl.TrustManager;', 'java.security.SecureRandom');
+
+        SSLContext_init.implementation = function(keyManager, trustManager, secureRandom) {
+            logDebug("Overriding SSLContext.init() to use DummyTrustManager");
+            SSLContext_init.call(this, keyManager, TrustManagers, secureRandom);
+        };
+        logSuccess("X509TrustManager bypassed");
+    } catch (e) {
+        logError("X509TrustManager bypass failed: " + e);
+    }
+
+    // Bypass OkHttp3 CertificatePinner
+    try {
+        var CertificatePinner = Java.use('okhttp3.CertificatePinner');
+        CertificatePinner.check.overload('java.lang.String', 'java.util.List').implementation = function (str) {
+            logDebug("OkHttp3 CertificatePinner.check() bypassed for: " + str);
+            return;
+        };
+        logSuccess("OkHttp3 CertificatePinner bypassed");
+    } catch (e) {
+        logDebug("OkHttp3 CertificatePinner not found or bypass failed");
+    }
+
+    // Bypass TrustManagerImpl (Android > 7)
+    try {
+        var TrustManagerImpl = Java.use('com.android.org.conscrypt.TrustManagerImpl');
+        TrustManagerImpl.verifyChain.implementation = function (untrustedChain, trustAnchorChain, host, clientAuth, ocspData, tlsSctData) {
+            logDebug("TrustManagerImpl.verifyChain() bypassed for host: " + host);
+            return untrustedChain;
+        };
+        logSuccess("TrustManagerImpl bypassed");
+    } catch (e) {
+        logDebug("TrustManagerImpl not found or bypass failed");
+    }
+
+    // Bypass HttpsURLConnection HostnameVerifier
+    try {
+        var HttpsURLConnection = Java.use("javax.net.ssl.HttpsURLConnection");
+        HttpsURLConnection.setDefaultHostnameVerifier.implementation = function(hostnameVerifier) {
+            logDebug("HttpsURLConnection.setDefaultHostnameVerifier() bypassed");
+            return;
+        };
+        HttpsURLConnection.setHostnameVerifier.implementation = function(hostnameVerifier) {
+            logDebug("HttpsURLConnection.setHostnameVerifier() bypassed");
+            return;
+        };
+        logSuccess("HttpsURLConnection HostnameVerifier bypassed");
+    } catch (e) {
+        logError("HttpsURLConnection HostnameVerifier bypass failed: " + e);
+    }
+
+    logSuccess("SSL Pinning Bypass setup complete!");
+}
 /* ========== MAIN EXECUTION ========== */
 
 Java.perform(function () {
@@ -2647,6 +2724,8 @@ Java.perform(function () {
         console.log("");
 
         setupRootDetectionBypass();
+        console.log("");
+        setupSSLPinningBypass();
         console.log("");
         console.log("\x1b[1m\x1b[32m╔════════════════════════════════════════════════════════════════╗\x1b[0m");
         console.log("\x1b[1m\x1b[32m║    ✓✓✓ REAL NEW DEVICE HOOKS INSTALLED SUCCESSFULLY ✓✓✓      ║\x1b[0m");
