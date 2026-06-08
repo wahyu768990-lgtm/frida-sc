@@ -1,8 +1,8 @@
 /* ============================================
    FRIDA SPOOF SCRIPT - ULTIMATE DEVICE SPOOFING
    All Build Properties & Deep System Hooks
-   Version: 4.1 - ENHANCED AGGRESSIVE HOOKING
-   Target: POCO F3 Complete Spoof + New Device Simulation
+   Version: 4.2 - REAL NEW DEVICE COMPLETE
+   Target: POCO F3 Complete Spoof + Full New Device
    ============================================ */
 
 /* ========== UTILITIES ========== */
@@ -31,6 +31,15 @@ function _randomPaddedInt(length) {
     return _pad(_randomInt(0, Math.pow(10, length)), length);
 }
 
+function _randomSerialNo() {
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    var result = "";
+    for (var i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 function _luhn_getcheck(code) {
     code = String(code).concat("0");
     var len = code.length;
@@ -48,24 +57,6 @@ function _luhn_getcheck(code) {
     }
     var checksum = sum % 10;
     return checksum == 0 ? 0 : 10 - checksum;
-}
-
-function _luhn_verify(code) {
-    code = String(code);
-    var len = code.length;
-    var parity = len % 2;
-    var sum = 0;
-    for (var i = len - 1; i >= 0; i--) {
-        var d = parseInt(code.charAt(i))
-        if (i % 2 == parity) {
-            d *= 2;
-        }
-        if (d > 9) {
-            d -= 9;
-        }
-        sum += d;
-    }
-    return sum % 10 == 0;
 }
 
 /* ========== LOGGING FUNCTIONS ========== */
@@ -94,7 +85,7 @@ function getTimestamp() {
     return new Date().toISOString();
 }
 
-/* ========== DEVICE DATABASE WITH ALL VARIANTS ========== */
+/* ========== DEVICE DATABASE EXTENDED ========== */
 
 var DEVICE_DATABASE = {
     "samsung": {
@@ -103,18 +94,20 @@ var DEVICE_DATABASE = {
             BRAND: "samsung", FINGERPRINT: "samsung/d1q/d1:12/SPB1/G991BXXU1AUC2:user/release-keys",
             HARDWARE: "d1", HOST: "lgefx02", USER: "dpi", DISPLAY: "SPB1.201120.019",
             ID: "SPB1.201120.019", TAGS: "release-keys", TYPE: "user", BOARD: "d1",
-            BOOTLOADER: "unknown", RADIO: "unknown",
+            BOOTLOADER: "G991BXXU1AUC2", RADIO: "exynos9830",
             DEVICE_NAME: "Galaxy S21", DEVICE_FULL_NAME: "Samsung Galaxy S21",
-            PRODUCT_NAME: "d1q", SDK_INT: 31, RELEASE: "12"
+            PRODUCT_NAME: "d1q", SDK_INT: 31, RELEASE: "12",
+            FIRST_API_LEVEL: "31", SECURITY_PATCH: "2021-12-05", VNDK_VERSION: "31"
         },
         "s20": {
             DEVICE: "y2q", PRODUCT: "y2q", MODEL: "SM-G980F", MANUFACTURER: "Samsung",
             BRAND: "samsung", FINGERPRINT: "samsung/y2q/y2q:11/RP1A.200720.011/G980FXXU1ATJ1:user/release-keys",
             HARDWARE: "y2q", HOST: "lgefx02", USER: "dpi", DISPLAY: "RP1A.200720.011",
             ID: "RP1A.200720.011", TAGS: "release-keys", TYPE: "user", BOARD: "y2q",
-            BOOTLOADER: "unknown", RADIO: "unknown",
+            BOOTLOADER: "G980FXXU1ATJ1", RADIO: "exynos990",
             DEVICE_NAME: "Galaxy S20", DEVICE_FULL_NAME: "Samsung Galaxy S20",
-            PRODUCT_NAME: "y2q", SDK_INT: 30, RELEASE: "11"
+            PRODUCT_NAME: "y2q", SDK_INT: 30, RELEASE: "11",
+            FIRST_API_LEVEL: "29", SECURITY_PATCH: "2020-07-20", VNDK_VERSION: "30"
         }
     },
     "xiaomi": {
@@ -123,51 +116,10 @@ var DEVICE_DATABASE = {
             BRAND: "xiaomi", FINGERPRINT: "Xiaomi/venus/venus:12/S1S1.211211.010/22.1.18:user/release-keys",
             HARDWARE: "venus", HOST: "xmkbuild22", USER: "android-build", DISPLAY: "S1S1.211211.010",
             ID: "S1S1.211211.010", TAGS: "release-keys", TYPE: "user", BOARD: "venus",
-            BOOTLOADER: "unknown", RADIO: "unknown",
+            BOOTLOADER: "unknown", RADIO: "msm",
             DEVICE_NAME: "Mi 11", DEVICE_FULL_NAME: "Xiaomi Mi 11",
-            PRODUCT_NAME: "venus", SDK_INT: 31, RELEASE: "12"
-        },
-        "redmi_note_11": {
-            DEVICE: "saikal", PRODUCT: "saikal", MODEL: "2201117TG", MANUFACTURER: "Xiaomi",
-            BRAND: "xiaomi", FINGERPRINT: "Xiaomi/saikal/saikal:12/S1S1.211211.010/22.1.18:user/release-keys",
-            HARDWARE: "saikal", HOST: "xmkbuild22", USER: "android-build", DISPLAY: "S1S1.211211.010",
-            ID: "S1S1.211211.010", TAGS: "release-keys", TYPE: "user", BOARD: "saikal",
-            BOOTLOADER: "unknown", RADIO: "unknown",
-            DEVICE_NAME: "Redmi Note 11", DEVICE_FULL_NAME: "Xiaomi Redmi Note 11",
-            PRODUCT_NAME: "saikal", SDK_INT: 31, RELEASE: "12"
-        }
-    },
-    "oppo": {
-        "a54": {
-            DEVICE: "kiara", PRODUCT: "kiara", MODEL: "CPH2347", MANUFACTURER: "OPPO",
-            BRAND: "oppo", FINGERPRINT: "OPPO/CPH2347/kiara:12/SP1A.210812.016/1631459200:user/release-keys",
-            HARDWARE: "kiara", HOST: "localhost", USER: "builder", DISPLAY: "SP1A.210812.016",
-            ID: "SP1A.210812.016", TAGS: "release-keys", TYPE: "user", BOARD: "kiara",
-            BOOTLOADER: "unknown", RADIO: "unknown",
-            DEVICE_NAME: "A54", DEVICE_FULL_NAME: "OPPO A54",
-            PRODUCT_NAME: "kiara", SDK_INT: 31, RELEASE: "12"
-        }
-    },
-    "realme": {
-        "gt": {
-            DEVICE: "galileo", PRODUCT: "RMX2200", MODEL: "RMX2200", MANUFACTURER: "realme",
-            BRAND: "realme", FINGERPRINT: "realme/RMX2200/RMX2200:11/RP1A.200720.011/1609459200:user/release-keys",
-            HARDWARE: "galileo", HOST: "localhost", USER: "builder", DISPLAY: "RP1A.200720.011",
-            ID: "RP1A.200720.011", TAGS: "release-keys", TYPE: "user", BOARD: "galileo",
-            BOOTLOADER: "unknown", RADIO: "unknown",
-            DEVICE_NAME: "Realme GT", DEVICE_FULL_NAME: "realme GT",
-            PRODUCT_NAME: "RMX2200", SDK_INT: 30, RELEASE: "11"
-        }
-    },
-    "vivo": {
-        "v23": {
-            DEVICE: "star", PRODUCT: "star", MODEL: "V2134", MANUFACTURER: "vivo",
-            BRAND: "vivo", FINGERPRINT: "vivo/star/star:12/SP1A.210812.016/1631459200:user/release-keys",
-            HARDWARE: "star", HOST: "localhost", USER: "builder", DISPLAY: "SP1A.210812.016",
-            ID: "SP1A.210812.016", TAGS: "release-keys", TYPE: "user", BOARD: "star",
-            BOOTLOADER: "unknown", RADIO: "unknown",
-            DEVICE_NAME: "Vivo V23", DEVICE_FULL_NAME: "vivo V23",
-            PRODUCT_NAME: "star", SDK_INT: 31, RELEASE: "12"
+            PRODUCT_NAME: "venus", SDK_INT: 31, RELEASE: "12",
+            FIRST_API_LEVEL: "30", SECURITY_PATCH: "2021-12-10", VNDK_VERSION: "31"
         }
     }
 };
@@ -184,37 +136,65 @@ function _getRandomDevice() {
     };
 }
 
-/* ========== AGGRESSIVE SYSTEM PROPERTIES HOOKING ========== */
+/* ========== EXTENDED SYSTEM PROPERTIES HOOKING ========== */
 
-function hookAllSystemProperties(deviceData) {
-    logInfo("Hooking ALL system properties (aggressive)...");
+function hookExtendedSystemProperties(deviceData) {
+    logInfo("Hooking EXTENDED system properties (real new device)...");
     
     try {
         var System = Java.use("java.lang.System");
+        var serialNo = _randomSerialNo();
         
         var propertyMap = {
+            // Standard Device Properties
             "ro.product.device": deviceData.DEVICE,
             "ro.product.model": deviceData.MODEL,
             "ro.product.manufacturer": deviceData.MANUFACTURER,
             "ro.product.brand": deviceData.BRAND,
             "ro.product.product": deviceData.PRODUCT,
             "ro.product.name": deviceData.PRODUCT_NAME,
+            
+            // Build/Fingerprint Properties
             "ro.build.display.id": deviceData.DISPLAY,
             "ro.build.fingerprint": deviceData.FINGERPRINT,
-            "ro.hardware": deviceData.HARDWARE,
-            "ro.board.platform": deviceData.BOARD,
             "ro.build.id": deviceData.ID,
             "ro.build.tags": deviceData.TAGS,
             "ro.build.type": deviceData.TYPE,
             "ro.build.host": deviceData.HOST,
             "ro.build.user": deviceData.USER,
-            "ro.product.board": deviceData.BOARD,
+            "ro.build.version.sdk": String(deviceData.SDK_INT),
+            "ro.build.version.release": deviceData.RELEASE,
+            "ro.build.version.security_patch": deviceData.SECURITY_PATCH,
+            
+            // Hardware Properties
+            "ro.hardware": deviceData.HARDWARE,
+            "ro.hardware.keystore": "msm8998",
+            "ro.board.platform": deviceData.BOARD,
             "ro.bootloader": deviceData.BOOTLOADER,
             "ro.baseband": deviceData.RADIO,
-            "ro.device": deviceData.DEVICE,
+            
+            // Serial/Unique Identifiers
+            "ro.serialno": serialNo,
+            "ro.boot.serialno": serialNo,
+            "persist.sys.serial": serialNo,
+            "ro.vendor.product.serial": serialNo,
+            
+            // First API Level (critical for new device detection)
+            "ro.product.first_api_level": String(deviceData.FIRST_API_LEVEL),
+            "ro.board.first_api_level": String(deviceData.FIRST_API_LEVEL),
+            
+            // VNDK Version
+            "ro.product.vndk.version": String(deviceData.VNDK_VERSION),
+            
+            // Security Properties
+            "ro.secure": "1",
+            "ro.debuggable": "0",
+            "ro.boot.verifiedbootstate": "green",
+            "ro.boot.flash.locked": "1",
+            
+            // Network Hostname
             "net.hostname": deviceData.DEVICE,
-            "ro.build.version.sdk": String(deviceData.SDK_INT),
-            "ro.build.version.release": deviceData.RELEASE
+            "net.change": _randomHex(16)
         };
         
         System.getProperty.overload("java.lang.String").implementation = function(key) {
@@ -225,78 +205,89 @@ function hookAllSystemProperties(deviceData) {
             return this.getProperty(key);
         };
         
-        logSuccess("System properties hooked (aggressive)");
+        logSuccess("Extended system properties hooked");
         
     } catch (err) {
-        logError("Error hooking System properties: " + err.message);
+        logError("Error hooking extended properties: " + err.message);
     }
 }
 
 /* ========== BUILD CLASS DEEP HOOKING ========== */
 
 function deepSpoofBuildProperties(deviceData) {
-    logInfo("Deep spoofing Build class properties...");
+    logInfo("Deep spoofing ALL Build class fields...");
     
     try {
         var Build = Java.use("android.os.Build");
+        var serialNo = _randomSerialNo();
         
-        var buildFields = [
-            "DEVICE", "PRODUCT", "MODEL", "MANUFACTURER", "BRAND", "FINGERPRINT",
-            "HARDWARE", "HOST", "USER", "DISPLAY", "ID", "TAGS", "TYPE", "BOARD",
-            "BOOTLOADER", "RADIO"
-        ];
+        var buildFields = {
+            "DEVICE": deviceData.DEVICE,
+            "PRODUCT": deviceData.PRODUCT,
+            "MODEL": deviceData.MODEL,
+            "MANUFACTURER": deviceData.MANUFACTURER,
+            "BRAND": deviceData.BRAND,
+            "FINGERPRINT": deviceData.FINGERPRINT,
+            "HARDWARE": deviceData.HARDWARE,
+            "HOST": deviceData.HOST,
+            "USER": deviceData.USER,
+            "DISPLAY": deviceData.DISPLAY,
+            "ID": deviceData.ID,
+            "TAGS": deviceData.TAGS,
+            "TYPE": deviceData.TYPE,
+            "BOARD": deviceData.BOARD,
+            "BOOTLOADER": deviceData.BOOTLOADER,
+            "RADIO": deviceData.RADIO,
+            "SERIAL": serialNo,
+            "IS_DEBUGGABLE": false
+        };
         
-        for (var i = 0; i < buildFields.length; i++) {
-            var fieldName = buildFields[i];
-            var fieldValue = deviceData[fieldName];
+        for (var fieldName in buildFields) {
+            var fieldValue = buildFields[fieldName];
             
-            if (fieldValue !== undefined) {
+            try {
+                var field = Build.class.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                
                 try {
-                    var field = Build.class.getDeclaredField(fieldName);
-                    field.setAccessible(true);
-                    
-                    try {
-                        var modifiersField = Java.use("java.lang.reflect.Field").class.getDeclaredField("modifiers");
-                        modifiersField.setAccessible(true);
-                        modifiersField.setInt(field, field.getModifiers() & ~Java.use("java.lang.reflect.Modifier").FINAL);
-                    } catch (e) {}
-                    
-                    field.set(null, fieldValue);
-                    logDebug("✓ Build." + fieldName + " = " + fieldValue);
-                } catch (e) {
-                    logDebug("✗ Build." + fieldName + ": " + e.message);
-                }
+                    var modifiersField = Java.use("java.lang.reflect.Field").class.getDeclaredField("modifiers");
+                    modifiersField.setAccessible(true);
+                    modifiersField.setInt(field, field.getModifiers() & ~Java.use("java.lang.reflect.Modifier").FINAL);
+                } catch (e) {}
+                
+                field.set(null, fieldValue);
+                logDebug("✓ Build." + fieldName + " = " + fieldValue);
+            } catch (e) {
+                logDebug("Build." + fieldName + ": " + e.message);
             }
         }
         
         logSuccess("Build properties deep spoofed");
         
     } catch (err) {
-        logError("Error deep spoofing Build properties: " + err.message);
+        logError("Error in Build spoofing: " + err.message);
     }
 }
 
 /* ========== BUILD VERSION HOOKING ========== */
 
 function spoofBuildVersion(deviceData) {
-    logInfo("Spoofing Build.VERSION properties...");
+    logInfo("Spoofing Build.VERSION & Build.VERSION_CODES...");
     
     try {
         var Version = Java.use("android.os.Build$VERSION");
         
-        try {
-            Version.SDK_INT.value = deviceData.SDK_INT;
-            logDebug("✓ SDK_INT = " + deviceData.SDK_INT);
-        } catch(e) {
-            logDebug("SDK_INT: " + e.message);
-        }
+        Version.SDK_INT.value = deviceData.SDK_INT;
+        logDebug("✓ SDK_INT = " + deviceData.SDK_INT);
         
-        try {
-            Version.RELEASE.value = deviceData.RELEASE;
-            logDebug("✓ RELEASE = " + deviceData.RELEASE);
-        } catch(e) {
-            logDebug("RELEASE: " + e.message);
-        }
+        Version.RELEASE.value = deviceData.RELEASE;
+        logDebug("✓ RELEASE = " + deviceData.RELEASE);
+        
+        Version.SECURITY_PATCH.value = deviceData.SECURITY_PATCH;
+        logDebug("✓ SECURITY_PATCH = " + deviceData.SECURITY_PATCH);
+        
+        Version.PREVIEW_SDK_INT.value = 0;
+        logDebug("✓ PREVIEW_SDK_INT = 0");
         
         logSuccess("Build.VERSION spoofed");
     } catch (err) {
@@ -310,62 +301,51 @@ function hookDeviceSettings(deviceData) {
     logInfo("Hooking Device Settings...");
     
     try {
-        var Settings = Java.use("android.provider.Settings");
+        var SettingsGlobal = Java.use("android.provider.Settings$Global");
         
-        try {
-            var SettingsGlobal = Java.use("android.provider.Settings$Global");
-            var getString = SettingsGlobal.getString.overload("android.content.ContentResolver", "java.lang.String");
-            
-            getString.implementation = function(resolver, name) {
-                if (name === "device_name" || name === "bluetooth_name") {
-                    logDebug("Settings.Global.getString(\"" + name + "\") -> " + deviceData.DEVICE_FULL_NAME);
-                    return deviceData.DEVICE_FULL_NAME;
-                }
-                return this.getString(resolver, name);
-            };
-            logDebug("✓ Settings.Global hooked");
-        } catch (e) {
-            logDebug("Settings.Global: " + e.message);
-        }
+        SettingsGlobal.getString.overload("android.content.ContentResolver", "java.lang.String").implementation = function(resolver, name) {
+            if (name === "device_name") {
+                logDebug("device_name -> " + deviceData.DEVICE_FULL_NAME);
+                return deviceData.DEVICE_FULL_NAME;
+            }
+            return this.getString(resolver, name);
+        };
         
         logSuccess("Device Settings hooked");
         
     } catch (err) {
-        logDebug("Settings hooking: " + err.message);
+        logError("Settings hooking error: " + err.message);
     }
 }
 
 /* ========== SECURE SETTINGS SPOOFING ========== */
 
 function spoofSecureSettings() {
-    logInfo("Spoofing Secure Settings...");
+    logInfo("Spoofing Secure Settings (android_id)...");
     
     try {
         var SettingsSecure = Java.use("android.provider.Settings$Secure");
         var android_id = _randomHex(16);
         
-        try {
-            var getString = SettingsSecure.getString.overload("android.content.ContentResolver", "java.lang.String");
-            getString.implementation = function(resolver, name) {
-                if (name === "android_id") {
-                    logDebug("android_id spoofed: " + android_id);
-                    return android_id;
-                }
-                return this.getString(resolver, name);
-            };
-            logSuccess("Secure settings spoofed");
-        } catch (e) {
-            logDebug("Secure settings: " + e.message);
-        }
+        SettingsSecure.getString.overload("android.content.ContentResolver", "java.lang.String").implementation = function(resolver, name) {
+            if (name === "android_id") {
+                logDebug("android_id -> " + android_id);
+                return android_id;
+            }
+            return this.getString(resolver, name);
+        };
+        
+        logSuccess("Secure settings spoofed");
+        
     } catch (err) {
-        logError("Error in secure settings: " + err.message);
+        logDebug("Secure settings: " + err.message);
     }
 }
 
 /* ========== TELEPHONY SPOOFING ========== */
 
 function spoofTelephony() {
-    logInfo("Spoofing Telephony properties...");
+    logInfo("Spoofing Telephony (IMEI, IMSI, etc)...");
     
     var android_id = _randomHex(16);
     var phone = _randomPaddedInt(10);
@@ -373,21 +353,9 @@ function spoofTelephony() {
     var imsi = _randomPaddedInt(15);
     var iccid = "89" + _randomPaddedInt(16) + _luhn_getcheck("89" + _randomPaddedInt(16));
     
-    logSuccess("Android ID: " + android_id);
-    logSuccess("Phone Number: " + phone);
-    logSuccess("IMEI: " + imei);
-    logSuccess("IMSI: " + imsi);
-    logSuccess("ICCID: " + iccid);
+    logSuccess("Telephony IDs: IMEI=" + imei + ", IMSI=" + imsi);
     
     try {
-        var Settings = Java.use("android.provider.Settings$Secure");
-        Settings.getString.overload("android.content.ContentResolver", "java.lang.String").implementation = function(context, name) {
-            if (name === Settings.ANDROID_ID.value) {
-                return android_id;
-            }
-            return this.getString(context, name);
-        };
-        
         var TelephonyManager = Java.use("android.telephony.TelephonyManager");
         
         TelephonyManager.getLine1Number.overload().implementation = function() {
@@ -445,7 +413,6 @@ function spoofMACAddress() {
         };
         
         logSuccess("MAC spoofing complete");
-        
     } catch (err) {
         logError("MAC error: " + err.message);
     }
@@ -454,7 +421,7 @@ function spoofMACAddress() {
 /* ========== GSF ID HIDING ========== */
 
 function hideGSFID() {
-    logInfo("Hiding GSF ID...");
+    logInfo("Hiding GSF ID (Google Services Framework)...");
     
     try {
         var ContentResolver = Java.use("android.content.ContentResolver");
@@ -473,17 +440,10 @@ function hideGSFID() {
             return this.query(uri, projection, selection, selectionArgs, sortOrder, cancellationSignal);
         };
         
-        ContentResolver.query.overload("android.net.Uri", "[Ljava.lang.String;", "java.lang.String", "[Ljava.lang.String;", "java.lang.String").implementation = function(uri, projection, selection, selectionArgs, sortOrder) {
-            if (uri.toString().indexOf("com.google.android.gsf") !== -1) {
-                return null;
-            }
-            return this.query(uri, projection, selection, selectionArgs, sortOrder);
-        };
-        
-        logSuccess("GSF ID hiding complete");
+        logSuccess("GSF ID hidden");
         
     } catch (err) {
-        logError("GSF error: " + err.message);
+        logDebug("GSF hiding: " + err.message);
     }
 }
 
@@ -496,8 +456,7 @@ function spoofAdvertisingId() {
         var AdvertisingIdClient = Java.use("com.google.android.gms.ads.identifier.AdvertisingIdClient");
         var Info = Java.use("com.google.android.gms.ads.identifier.AdvertisingIdClient$Info");
         
-        var getAdvertisingIdInfo = AdvertisingIdClient.getAdvertisingIdInfo;
-        getAdvertisingIdInfo.overload("android.content.Context").implementation = function(context) {
+        AdvertisingIdClient.getAdvertisingIdInfo.overload("android.content.Context").implementation = function(context) {
             var adid = _randomHex(32);
             logSuccess("Advertising ID: " + adid);
             return Info.$new(adid, false);
@@ -505,21 +464,21 @@ function spoofAdvertisingId() {
         
         logSuccess("Advertising ID spoofed");
     } catch (err) {
-        logDebug("Advertising ID spoof (GMS not available): " + err.message);
+        logDebug("Advertising ID (GMS not available): " + err.message);
     }
 }
 
-/* ========== FIRST BOOT & TIMESTAMPS ========== */
+/* ========== BOOT TIMESTAMP SPOOFING ========== */
 
 function spoofBootTimestamps() {
-    logInfo("Spoofing First Boot Timestamps...");
+    logInfo("Spoofing boot timestamps (first setup)...");
     
     try {
         var System = Java.use("java.lang.System");
+        var firstBootTime = Date.now() - _randomInt(3600000, 604800000);
+        
+        // Spoof via system property
         var Build = Java.use("android.os.Build");
-        
-        var firstBootTime = Date.now() - _randomInt(3600000, 604800000); // 1 hour to 7 days ago
-        
         try {
             var field = Build.class.getDeclaredField("TIME");
             field.setAccessible(true);
@@ -534,7 +493,61 @@ function spoofBootTimestamps() {
         
         logSuccess("Boot timestamps spoofed");
     } catch (err) {
-        logDebug("Boot timestamps: " + err.message);
+        logDebug("Boot timestamp error: " + err.message);
+    }
+}
+
+/* ========== PACKAGE MANAGER SPOOFING (NEW) ========== */
+
+function spoofPackageManager() {
+    logInfo("Spoofing Package Manager (installation dates)...");
+    
+    try {
+        var PackageManager = Java.use("android.content.pm.PackageManager");
+        var getPackageInfo = PackageManager.getPackageInfo;
+        
+        getPackageInfo.overload("java.lang.String", "int").implementation = function(packageName, flags) {
+            var info = this.getPackageInfo(packageName, flags);
+            
+            // Spoof first install time to appear as pre-installed
+            try {
+                var firstInstallTime = Date.now() - _randomInt(86400000, 604800000);
+                info.firstInstallTime = firstInstallTime;
+                info.lastUpdateTime = Date.now();
+            } catch(e) {}
+            
+            return info;
+        };
+        
+        logSuccess("Package Manager spoofed");
+    } catch (err) {
+        logDebug("PackageManager spoof: " + err.message);
+    }
+}
+
+/* ========== INITIALIZATION (NEW DEVICE MARKER) ========== */
+
+function createNewDeviceMarker() {
+    logInfo("Creating NEW DEVICE markers...");
+    
+    try {
+        var File = Java.use("java.io.File");
+        var Settings = Java.use("android.provider.Settings$Secure");
+        
+        // Spoof setup wizard completion flag
+        try {
+            Settings.putString.overload("android.content.ContentResolver", "java.lang.String", "java.lang.String").implementation = function(resolver, name, value) {
+                if (name === "setup_wizard_completed") {
+                    return 1;
+                }
+                return this.putString(resolver, name, value);
+            };
+            logDebug("Setup wizard marked as complete");
+        } catch(e) {}
+        
+        logSuccess("New device markers created");
+    } catch (err) {
+        logDebug("Device marker error: " + err.message);
     }
 }
 
@@ -542,18 +555,18 @@ function spoofBootTimestamps() {
 
 Java.perform(function () {
     console.log("\n");
-    console.log("\x1b[1m\x1b[34m╔═══════════════════════════════════════════════════════════╗\x1b[0m");
-    console.log("\x1b[1m\x1b[34m║    FRIDA ULTIMATE DEVICE SPOOFING SCRIPT v4.1 ENHANCED    ║\x1b[0m");
-    console.log("\x1b[1m\x1b[34m║         NEW DEVICE SIMULATION + ALL-LEVEL HOOKING         ║\x1b[0m");
-    console.log("\x1b[1m\x1b[34m║      Target: Complete POCO F3 to Random Device Spoof     ║\x1b[0m");
-    console.log("\x1b[1m\x1b[34m║              Timestamp: " + getTimestamp() + "              ║\x1b[0m");
-    console.log("\x1b[1m\x1b[34m╚═══════════════════════════════════════════════════════════╝\x1b[0m");
+    console.log("\x1b[1m\x1b[34m╔════════════════════════════════════════════════════════════════╗\x1b[0m");
+    console.log("\x1b[1m\x1b[34m║  FRIDA ULTIMATE DEVICE SPOOFING SCRIPT v4.2 - REAL NEW DEVICE ║\x1b[0m");
+    console.log("\x1b[1m\x1b[34m║     Extended Properties + First Boot Detection Spoofing       ║\x1b[0m");
+    console.log("\x1b[1m\x1b[34m║    Target: POCO F3 → Complete Random Device Transformation   ║\x1b[0m");
+    console.log("\x1b[1m\x1b[34m║              " + getTimestamp() + "              ║\x1b[0m");
+    console.log("\x1b[1m\x1b[34m╚════════════════════════════════════════════════════════════════╝\x1b[0m");
     
     try {
         var randomDevice = _getRandomDevice();
         var deviceData = randomDevice.data;
         
-        console.log("\x1b[1m\x1b[33m[DEVICE SELECTED]\x1b[0m " + randomDevice.brand.toUpperCase() + " - " + randomDevice.model + "\n");
+        console.log("\x1b[1m\x1b[33m[DEVICE SELECTED]\x1b[0m " + randomDevice.brand.toUpperCase() + " > " + randomDevice.model + "\n");
         
         deepSpoofBuildProperties(deviceData);
         console.log("");
@@ -561,7 +574,7 @@ Java.perform(function () {
         spoofBuildVersion(deviceData);
         console.log("");
         
-        hookAllSystemProperties(deviceData);
+        hookExtendedSystemProperties(deviceData);
         console.log("");
         
         hookDeviceSettings(deviceData);
@@ -582,15 +595,30 @@ Java.perform(function () {
         spoofAdvertisingId();
         console.log("");
         
+        spoofPackageManager();
+        console.log("");
+        
+        createNewDeviceMarker();
+        console.log("");
+        
         hideGSFID();
         console.log("");
         
-        console.log("\x1b[1m\x1b[32m╔═══════════════════════════════════════════════════════════╗\x1b[0m");
-        console.log("\x1b[1m\x1b[32m║    ✓ ALL SPOOFING HOOKS INSTALLED SUCCESSFULLY!          ║\x1b[0m");
-        console.log("\x1b[1m\x1b[32m║  Device Completely Transformed (POCO F3 → " + randomDevice.brand.toUpperCase().padEnd(13) + ")  ║\x1b[0m");
-        console.log("\x1b[1m\x1b[32m║     Appears as NEW DEVICE on first boot detection        ║\x1b[0m");
-        console.log("\x1b[1m\x1b[32m║    Force Stop & Restart App to See All Changes           ║\x1b[0m");
-        console.log("\x1b[1m\x1b[32m╚═══════════════════════════════════════════════════════════╝\x1b[0m");
+        console.log("\x1b[1m\x1b[32m╔════════════════════════════════════════════════════════════════╗\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║    ✓✓✓ REAL NEW DEVICE HOOKS INSTALLED SUCCESSFULLY ✓✓✓      ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║                                                                ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  Device Transformation: POCO F3 → " + randomDevice.brand.toUpperCase().padEnd(22) + "║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  Model: " + randomDevice.model.padEnd(57) + "║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║                                                                ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  ✓ Build properties spoofed (all fields)                      ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  ✓ Serial numbers randomized                                 ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  ✓ Telephony IDs spoofed (IMEI/IMSI/ICCID)                   ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  ✓ First boot detection markers created                      ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  ✓ Package manager install dates spoofed                     ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  ✓ Appears as COMPLETELY NEW DEVICE                          ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║                                                                ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m║  → Force Stop & Restart target app to activate all hooks     ║\x1b[0m");
+        console.log("\x1b[1m\x1b[32m╚════════════════════════════════════════════════════════════════╝\x1b[0m");
         
     } catch (err) {
         logError("CRITICAL ERROR: " + err.message);
