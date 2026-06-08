@@ -140,11 +140,11 @@ function _getRandomDevice() {
 
 function hookExtendedSystemProperties(deviceData) {
     logInfo("Hooking EXTENDED system properties (real new device)...");
-    
+
     try {
         var System = Java.use("java.lang.System");
         var serialNo = _randomSerialNo();
-        
+
         var propertyMap = {
             // Standard Device Properties
             "ro.product.device": deviceData.DEVICE,
@@ -153,7 +153,7 @@ function hookExtendedSystemProperties(deviceData) {
             "ro.product.brand": deviceData.BRAND,
             "ro.product.product": deviceData.PRODUCT,
             "ro.product.name": deviceData.PRODUCT_NAME,
-            
+
             // Build/Fingerprint Properties
             "ro.build.display.id": deviceData.DISPLAY,
             "ro.build.fingerprint": deviceData.FINGERPRINT,
@@ -165,38 +165,38 @@ function hookExtendedSystemProperties(deviceData) {
             "ro.build.version.sdk": String(deviceData.SDK_INT),
             "ro.build.version.release": deviceData.RELEASE,
             "ro.build.version.security_patch": deviceData.SECURITY_PATCH,
-            
+
             // Hardware Properties
             "ro.hardware": deviceData.HARDWARE,
             "ro.hardware.keystore": "msm8998",
             "ro.board.platform": deviceData.BOARD,
             "ro.bootloader": deviceData.BOOTLOADER,
             "ro.baseband": deviceData.RADIO,
-            
+
             // Serial/Unique Identifiers
             "ro.serialno": serialNo,
             "ro.boot.serialno": serialNo,
             "persist.sys.serial": serialNo,
             "ro.vendor.product.serial": serialNo,
-            
+
             // First API Level (critical for new device detection)
             "ro.product.first_api_level": String(deviceData.FIRST_API_LEVEL),
             "ro.board.first_api_level": String(deviceData.FIRST_API_LEVEL),
-            
+
             // VNDK Version
             "ro.product.vndk.version": String(deviceData.VNDK_VERSION),
-            
+
             // Security Properties
             "ro.secure": "1",
             "ro.debuggable": "0",
             "ro.boot.verifiedbootstate": "green",
             "ro.boot.flash.locked": "1",
-            
+
             // Network Hostname
             "net.hostname": deviceData.DEVICE,
             "net.change": _randomHex(16)
         };
-        
+
         System.getProperty.overload("java.lang.String").implementation = function(key) {
             if (propertyMap[key] !== undefined) {
                 logDebug("System.getProperty(\"" + key + "\") -> " + propertyMap[key]);
@@ -204,9 +204,9 @@ function hookExtendedSystemProperties(deviceData) {
             }
             return this.getProperty(key);
         };
-        
+
         logSuccess("Extended system properties hooked");
-        
+
     } catch (err) {
         logError("Error hooking extended properties: " + err.message);
     }
@@ -216,11 +216,11 @@ function hookExtendedSystemProperties(deviceData) {
 
 function deepSpoofBuildProperties(deviceData) {
     logInfo("Deep spoofing ALL Build class fields...");
-    
+
     try {
         var Build = Java.use("android.os.Build");
         var serialNo = _randomSerialNo();
-        
+
         var buildFields = {
             "DEVICE": deviceData.DEVICE,
             "PRODUCT": deviceData.PRODUCT,
@@ -241,29 +241,29 @@ function deepSpoofBuildProperties(deviceData) {
             "SERIAL": serialNo,
             "IS_DEBUGGABLE": false
         };
-        
+
         for (var fieldName in buildFields) {
             var fieldValue = buildFields[fieldName];
-            
+
             try {
                 var field = Build.class.getDeclaredField(fieldName);
                 field.setAccessible(true);
-                
+
                 try {
                     var modifiersField = Java.use("java.lang.reflect.Field").class.getDeclaredField("modifiers");
                     modifiersField.setAccessible(true);
                     modifiersField.setInt(field, field.getModifiers() & ~Java.use("java.lang.reflect.Modifier").FINAL);
                 } catch (e) {}
-                
+
                 field.set(null, fieldValue);
                 logDebug("✓ Build." + fieldName + " = " + fieldValue);
             } catch (e) {
                 logDebug("Build." + fieldName + ": " + e.message);
             }
         }
-        
+
         logSuccess("Build properties deep spoofed");
-        
+
     } catch (err) {
         logError("Error in Build spoofing: " + err.message);
     }
@@ -273,22 +273,22 @@ function deepSpoofBuildProperties(deviceData) {
 
 function spoofBuildVersion(deviceData) {
     logInfo("Spoofing Build.VERSION & Build.VERSION_CODES...");
-    
+
     try {
         var Version = Java.use("android.os.Build$VERSION");
-        
+
         Version.SDK_INT.value = deviceData.SDK_INT;
         logDebug("✓ SDK_INT = " + deviceData.SDK_INT);
-        
+
         Version.RELEASE.value = deviceData.RELEASE;
         logDebug("✓ RELEASE = " + deviceData.RELEASE);
-        
+
         Version.SECURITY_PATCH.value = deviceData.SECURITY_PATCH;
         logDebug("✓ SECURITY_PATCH = " + deviceData.SECURITY_PATCH);
-        
+
         Version.PREVIEW_SDK_INT.value = 0;
         logDebug("✓ PREVIEW_SDK_INT = 0");
-        
+
         logSuccess("Build.VERSION spoofed");
     } catch (err) {
         logError("Error spoofing Build.VERSION: " + err.message);
@@ -299,10 +299,10 @@ function spoofBuildVersion(deviceData) {
 
 function hookDeviceSettings(deviceData) {
     logInfo("Hooking Device Settings...");
-    
+
     try {
         var SettingsGlobal = Java.use("android.provider.Settings$Global");
-        
+
         SettingsGlobal.getString.overload("android.content.ContentResolver", "java.lang.String").implementation = function(resolver, name) {
             if (name === "device_name") {
                 logDebug("device_name -> " + deviceData.DEVICE_FULL_NAME);
@@ -310,9 +310,9 @@ function hookDeviceSettings(deviceData) {
             }
             return this.getString(resolver, name);
         };
-        
+
         logSuccess("Device Settings hooked");
-        
+
     } catch (err) {
         logError("Settings hooking error: " + err.message);
     }
@@ -322,11 +322,11 @@ function hookDeviceSettings(deviceData) {
 
 function spoofSecureSettings() {
     logInfo("Spoofing Secure Settings (android_id)...");
-    
+
     try {
         var SettingsSecure = Java.use("android.provider.Settings$Secure");
         var android_id = _randomHex(16);
-        
+
         SettingsSecure.getString.overload("android.content.ContentResolver", "java.lang.String").implementation = function(resolver, name) {
             if (name === "android_id") {
                 logDebug("android_id -> " + android_id);
@@ -334,9 +334,9 @@ function spoofSecureSettings() {
             }
             return this.getString(resolver, name);
         };
-        
+
         logSuccess("Secure settings spoofed");
-        
+
     } catch (err) {
         logDebug("Secure settings: " + err.message);
     }
@@ -346,48 +346,48 @@ function spoofSecureSettings() {
 
 function spoofTelephony() {
     logInfo("Spoofing Telephony (IMEI, IMSI, etc)...");
-    
+
     var android_id = _randomHex(16);
     var phone = _randomPaddedInt(10);
     var imei = _randomPaddedInt(14) + _luhn_getcheck(_randomPaddedInt(14));
     var imsi = _randomPaddedInt(15);
     var iccid = "89" + _randomPaddedInt(16) + _luhn_getcheck("89" + _randomPaddedInt(16));
-    
+
     logSuccess("Telephony IDs: IMEI=" + imei + ", IMSI=" + imsi);
-    
+
     try {
         var TelephonyManager = Java.use("android.telephony.TelephonyManager");
-        
+
         TelephonyManager.getLine1Number.overload().implementation = function() {
             return phone;
         };
-        
+
         TelephonyManager.getDeviceId.overload().implementation = function() {
             return imei;
         };
-        
+
         TelephonyManager.getDeviceId.overload("int").implementation = function(slotIndex) {
             return imei;
         };
-        
+
         TelephonyManager.getImei.overload().implementation = function() {
             return imei;
         };
-        
+
         TelephonyManager.getImei.overload("int").implementation = function(slotIndex) {
             return imei;
         };
-        
+
         TelephonyManager.getSubscriberId.overload().implementation = function() {
             return imsi;
         };
-        
+
         TelephonyManager.getSimSerialNumber.overload().implementation = function() {
             return iccid;
         };
-        
+
         logSuccess("Telephony spoofing complete");
-        
+
     } catch (err) {
         logError("Telephony error: " + err.message);
     }
@@ -397,21 +397,21 @@ function spoofTelephony() {
 
 function spoofMACAddress() {
     logInfo("Spoofing MAC address...");
-    
+
     var mac = [];
     for (var i = 0; i < 6; i++) {
         mac.push(_randomInt(0, 255));
     }
     var mac_str = mac.map(function(x) { return _pad(x.toString(16), 2); }).join(":");
-    
+
     logSuccess("MAC Address: " + mac_str.toUpperCase());
-    
+
     try {
         var NetworkInterface = Java.use("java.net.NetworkInterface");
         NetworkInterface.getHardwareAddress.overload().implementation = function() {
             return Java.array("byte", mac);
         };
-        
+
         logSuccess("MAC spoofing complete");
     } catch (err) {
         logError("MAC error: " + err.message);
@@ -422,26 +422,26 @@ function spoofMACAddress() {
 
 function hideGSFID() {
     logInfo("Hiding GSF ID (Google Services Framework)...");
-    
+
     try {
         var ContentResolver = Java.use("android.content.ContentResolver");
-        
+
         ContentResolver.query.overload("android.net.Uri", "[Ljava.lang.String;", "android.os.Bundle", "android.os.CancellationSignal").implementation = function(uri, projection, queryArgs, cancellationSignal) {
             if (uri.toString().indexOf("com.google.android.gsf") !== -1) {
                 return null;
             }
             return this.query(uri, projection, queryArgs, cancellationSignal);
         };
-        
+
         ContentResolver.query.overload("android.net.Uri", "[Ljava.lang.String;", "java.lang.String", "[Ljava.lang.String;", "java.lang.String", "android.os.CancellationSignal").implementation = function(uri, projection, selection, selectionArgs, sortOrder, cancellationSignal) {
             if (uri.toString().indexOf("com.google.android.gsf") !== -1) {
                 return null;
             }
             return this.query(uri, projection, selection, selectionArgs, sortOrder, cancellationSignal);
         };
-        
+
         logSuccess("GSF ID hidden");
-        
+
     } catch (err) {
         logDebug("GSF hiding: " + err.message);
     }
@@ -451,17 +451,17 @@ function hideGSFID() {
 
 function spoofAdvertisingId() {
     logInfo("Spoofing Advertising ID...");
-    
+
     try {
         var AdvertisingIdClient = Java.use("com.google.android.gms.ads.identifier.AdvertisingIdClient");
         var Info = Java.use("com.google.android.gms.ads.identifier.AdvertisingIdClient$Info");
-        
+
         AdvertisingIdClient.getAdvertisingIdInfo.overload("android.content.Context").implementation = function(context) {
             var adid = _randomHex(32);
             logSuccess("Advertising ID: " + adid);
             return Info.$new(adid, false);
         };
-        
+
         logSuccess("Advertising ID spoofed");
     } catch (err) {
         logDebug("Advertising ID (GMS not available): " + err.message);
@@ -472,11 +472,11 @@ function spoofAdvertisingId() {
 
 function spoofBootTimestamps() {
     logInfo("Spoofing boot timestamps (first setup)...");
-    
+
     try {
         var System = Java.use("java.lang.System");
         var firstBootTime = Date.now() - _randomInt(3600000, 604800000);
-        
+
         // Spoof via system property
         var Build = Java.use("android.os.Build");
         try {
@@ -490,7 +490,7 @@ function spoofBootTimestamps() {
         } catch(e) {
             logDebug("Build.TIME: " + e.message);
         }
-        
+
         logSuccess("Boot timestamps spoofed");
     } catch (err) {
         logDebug("Boot timestamp error: " + err.message);
@@ -501,24 +501,24 @@ function spoofBootTimestamps() {
 
 function spoofPackageManager() {
     logInfo("Spoofing Package Manager (installation dates)...");
-    
+
     try {
         var PackageManager = Java.use("android.content.pm.PackageManager");
         var getPackageInfo = PackageManager.getPackageInfo;
-        
+
         getPackageInfo.overload("java.lang.String", "int").implementation = function(packageName, flags) {
             var info = this.getPackageInfo(packageName, flags);
-            
+
             // Spoof first install time to appear as pre-installed
             try {
                 var firstInstallTime = Date.now() - _randomInt(86400000, 604800000);
                 info.firstInstallTime = firstInstallTime;
                 info.lastUpdateTime = Date.now();
             } catch(e) {}
-            
+
             return info;
         };
-        
+
         logSuccess("Package Manager spoofed");
     } catch (err) {
         logDebug("PackageManager spoof: " + err.message);
@@ -529,11 +529,11 @@ function spoofPackageManager() {
 
 function createNewDeviceMarker() {
     logInfo("Creating NEW DEVICE markers...");
-    
+
     try {
         var File = Java.use("java.io.File");
         var Settings = Java.use("android.provider.Settings$Secure");
-        
+
         // Spoof setup wizard completion flag
         try {
             Settings.putString.overload("android.content.ContentResolver", "java.lang.String", "java.lang.String").implementation = function(resolver, name, value) {
@@ -544,11 +544,79 @@ function createNewDeviceMarker() {
             };
             logDebug("Setup wizard marked as complete");
         } catch(e) {}
-        
+
         logSuccess("New device markers created");
     } catch (err) {
         logDebug("Device marker error: " + err.message);
     }
+}
+
+
+/* ========== ANDROID 13+/14 DYNAMIC RECEIVER COMPATIBILITY ========== */
+
+function hookDynamicReceiverFlags() {
+    logInfo("Hooking dynamic BroadcastReceiver flags...");
+
+    // Android 13 introduced explicit receiver visibility flags and Android 14
+    // enforces them for apps targeting newer SDKs. Some target apps/libraries still
+    // call the legacy 2-arg/4-arg registerReceiver overloads, which crashes with:
+    // "One of RECEIVER_EXPORTED or RECEIVER_NOT_EXPORTED should be specified".
+    var RECEIVER_NOT_EXPORTED = 0x4;
+
+    function installHooks(className) {
+        try {
+            var Klass = Java.use(className);
+
+            try {
+                var legacyTwoArg = Klass.registerReceiver.overload(
+                    "android.content.BroadcastReceiver",
+                    "android.content.IntentFilter"
+                );
+                var flaggedThreeArg = Klass.registerReceiver.overload(
+                    "android.content.BroadcastReceiver",
+                    "android.content.IntentFilter",
+                    "int"
+                );
+
+                legacyTwoArg.implementation = function(receiver, filter) {
+                    logDebug(className + ".registerReceiver(receiver, filter) -> RECEIVER_NOT_EXPORTED");
+                    return flaggedThreeArg.call(this, receiver, filter, RECEIVER_NOT_EXPORTED);
+                };
+            } catch (e) {
+                logDebug(className + " 2-arg receiver hook skipped: " + e.message);
+            }
+
+            try {
+                var legacyFourArg = Klass.registerReceiver.overload(
+                    "android.content.BroadcastReceiver",
+                    "android.content.IntentFilter",
+                    "java.lang.String",
+                    "android.os.Handler"
+                );
+                var flaggedFiveArg = Klass.registerReceiver.overload(
+                    "android.content.BroadcastReceiver",
+                    "android.content.IntentFilter",
+                    "java.lang.String",
+                    "android.os.Handler",
+                    "int"
+                );
+
+                legacyFourArg.implementation = function(receiver, filter, broadcastPermission, scheduler) {
+                    logDebug(className + ".registerReceiver(receiver, filter, permission, scheduler) -> RECEIVER_NOT_EXPORTED");
+                    return flaggedFiveArg.call(this, receiver, filter, broadcastPermission, scheduler, RECEIVER_NOT_EXPORTED);
+                };
+            } catch (e) {
+                logDebug(className + " 4-arg receiver hook skipped: " + e.message);
+            }
+        } catch (err) {
+            logDebug(className + " receiver hook unavailable: " + err.message);
+        }
+    }
+
+    installHooks("android.content.ContextWrapper");
+    installHooks("android.app.ContextImpl");
+
+    logSuccess("Dynamic BroadcastReceiver flags hooked");
 }
 
 /* ========== MAIN EXECUTION ========== */
@@ -561,49 +629,52 @@ Java.perform(function () {
     console.log("\x1b[1m\x1b[34m║    Target: POCO F3 → Complete Random Device Transformation   ║\x1b[0m");
     console.log("\x1b[1m\x1b[34m║              " + getTimestamp() + "              ║\x1b[0m");
     console.log("\x1b[1m\x1b[34m╚════════════════════════════════════════════════════════════════╝\x1b[0m");
-    
+
     try {
         var randomDevice = _getRandomDevice();
         var deviceData = randomDevice.data;
-        
+
         console.log("\x1b[1m\x1b[33m[DEVICE SELECTED]\x1b[0m " + randomDevice.brand.toUpperCase() + " > " + randomDevice.model + "\n");
-        
+
+        hookDynamicReceiverFlags();
+        console.log("");
+
         deepSpoofBuildProperties(deviceData);
         console.log("");
-        
+
         spoofBuildVersion(deviceData);
         console.log("");
-        
+
         hookExtendedSystemProperties(deviceData);
         console.log("");
-        
+
         hookDeviceSettings(deviceData);
         console.log("");
-        
+
         spoofSecureSettings();
         console.log("");
-        
+
         spoofTelephony();
         console.log("");
-        
+
         spoofMACAddress();
         console.log("");
-        
+
         spoofBootTimestamps();
         console.log("");
-        
+
         spoofAdvertisingId();
         console.log("");
-        
+
         spoofPackageManager();
         console.log("");
-        
+
         createNewDeviceMarker();
         console.log("");
-        
+
         hideGSFID();
         console.log("");
-        
+
         console.log("\x1b[1m\x1b[32m╔════════════════════════════════════════════════════════════════╗\x1b[0m");
         console.log("\x1b[1m\x1b[32m║    ✓✓✓ REAL NEW DEVICE HOOKS INSTALLED SUCCESSFULLY ✓✓✓      ║\x1b[0m");
         console.log("\x1b[1m\x1b[32m║                                                                ║\x1b[0m");
@@ -619,7 +690,7 @@ Java.perform(function () {
         console.log("\x1b[1m\x1b[32m║                                                                ║\x1b[0m");
         console.log("\x1b[1m\x1b[32m║  → Force Stop & Restart target app to activate all hooks     ║\x1b[0m");
         console.log("\x1b[1m\x1b[32m╚════════════════════════════════════════════════════════════════╝\x1b[0m");
-        
+
     } catch (err) {
         logError("CRITICAL ERROR: " + err.message);
         console.error(err);
