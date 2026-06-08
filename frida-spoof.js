@@ -2140,10 +2140,11 @@ function setupNetworkMonitor() {
                 logDebug("OkHttp Header - " + headerName + ": " + headerValue);
 
                 // Check for sensitive headers
-                if (headerName.toLowerCase().includes("authorization") ||
-                    headerName.toLowerCase().includes("token") ||
-                    headerName.toLowerCase().includes("key")) {
-                    logWarn("SENSITIVE HEADER DETECTED: " + headerName);
+                var headerNameStr = String(headerName);
+                if (headerNameStr.toLowerCase().includes("authorization") ||
+                    headerNameStr.toLowerCase().includes("token") ||
+                    headerNameStr.toLowerCase().includes("key")) {
+                    logWarn("SENSITIVE HEADER DETECTED: " + headerNameStr);
                 }
             }
 
