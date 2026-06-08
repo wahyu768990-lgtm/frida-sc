@@ -2538,6 +2538,7 @@ function setupRootDetectionBypass() {
                 return this.loadLibrary(library);
             } catch (e) {
                 logDebug("Library load failed, continuing: " + e);
+                throw e; // Rethrow to allow the app to handle missing libraries
             }
         };
         logSuccess("System.loadLibrary() hooked");
