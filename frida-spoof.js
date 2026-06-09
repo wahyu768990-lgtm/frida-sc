@@ -1818,7 +1818,7 @@ function setupAntiDebuggingBypass() {
 
     nativeFunctions.forEach(function(funcName) {
         try {
-            var funcPtr = Module.findExportByName("libc.so", funcName);
+            var funcPtr = Module.findExportByName(null, funcName) || Module.findExportByName("libc.so", funcName);
             if (funcPtr && !funcPtr.isNull()) {
                 Interceptor.attach(funcPtr, {
                     onEnter: function(args) {
@@ -2007,7 +2007,7 @@ function setupNetworkMonitor() {
 
         logSuccess("Volley Request hooks installed");
     } catch (e) {
-        logError("Volley Request hook failed: " + e);
+        logDebug("Volley Request class not found, skipping hook.");
     }
 
     // Monitor Retrofit (if present)
@@ -2022,7 +2022,7 @@ function setupNetworkMonitor() {
 
         logSuccess("Retrofit hooks installed");
     } catch (e) {
-        logError("Retrofit hook failed: " + e);
+        logDebug("Retrofit class not found, skipping hook.");
     }
 
     // Monitor Socket connections
@@ -2149,8 +2149,8 @@ function setupNetworkMonitor() {
     try {
         var BufferedReader = Java.use("java.io.BufferedReader");
 
-        var originalReadLine = BufferedReader.readLine;
-        BufferedReader.readLine.implementation = function() {
+        var originalReadLine = BufferedReader.readLine.overload();
+        BufferedReader.readLine.overload().implementation = function() {
             var line = originalReadLine.call(this);
 
             if (line != null && line.length > 0) {
@@ -2314,7 +2314,7 @@ function setupRootDetectionBypass() {
     // Package manager bypass
     try {
         var PackageManager = Java.use("android.app.ApplicationPackageManager");
-        PackageManager.getInstalledPackages.implementation = function(flags) {
+        PackageManager.getInstalledPackages.overload('int').implementation = function(flags) {
             var packages = this.getInstalledPackages(flags);
             var filtered_packages = [];
 
