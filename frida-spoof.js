@@ -2030,7 +2030,7 @@ function setupAntiDebuggingBypass() {
         var Thread = Java.use("java.lang.Thread");
         var getStackTraceOverload = Thread.getStackTrace.overload();
 
-        Thread.getStackTrace.implementation = function () {
+        getStackTraceOverload.implementation = function () {
             // Jangan log tiap stack trace, ini penyebab spam berat
             // Jangan panggil this.getStackTrace(), karena itu manggil hook ini lagi
             return getStackTraceOverload.call(this);
@@ -2564,8 +2564,8 @@ function setupRootDetectionBypass() {
             logDebug("System.loadLibrary() called for: " + library);
 
             try {
-                // Panggil original overload, bukan this.loadLibrary()
-                return systemLoadLibrary.call(this, library);
+                // Panggil original overload dengan System
+                return systemLoadLibrary.call(System, library);
             } catch (e) {
                 logDebug("System.loadLibrary() failed for " + library + ": " + e);
                 throw e;
@@ -2576,7 +2576,8 @@ function setupRootDetectionBypass() {
             logDebug("System.load() called for: " + path);
 
             try {
-                return systemLoad.call(this, path);
+                // Panggil original overload dengan System
+                return systemLoad.call(System, path);
             } catch (e) {
                 logDebug("System.load() failed for " + path + ": " + e);
                 throw e;
