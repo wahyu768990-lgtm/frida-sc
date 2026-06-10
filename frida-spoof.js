@@ -5,6 +5,40 @@
    Target: POCO F3 Complete Spoof + Full New Device
    ============================================ */
 
+/* ========== CONFIGURATION ========== */
+// Set these to false to disable specific modules for debugging/testing
+var CONFIG = {
+    ENABLE_DYNAMIC_RECEIVER_FIX: true,
+    ENABLE_BUILD_SPOOFING: true,
+    ENABLE_BUILD_VERSION_SPOOFING: true,
+    ENABLE_JAVA_SYSTEM_PROPERTIES: true,
+    ENABLE_NETWORK_MONITOR: false, // Keep false to reduce log noise
+    ENABLE_PACKAGE_MANAGER_SPOOF: true,
+    ENABLE_WEBVIEW_UA_SPOOF: true,
+    ENABLE_TELEPHONY_SPOOF: true,
+    ENABLE_NETWORK_INFO_SPOOF: true,
+    ENABLE_PLAY_SERVICES_SPOOF: true,
+    ENABLE_ADVERTISING_ID_SPOOF: true,
+    ENABLE_APPSFLYER_SPOOF: true,
+    ENABLE_INSTALL_REFERRER_SPOOF: true,
+
+    ENABLE_ROOT_BYPASS: true,
+    ENABLE_ANTI_DEBUG: true,
+    ENABLE_NATIVE_SYSTEM_PROPERTIES: true,
+    ENABLE_RESET_SESSION: true,
+    ENABLE_HIDE_GSF: true,
+    ENABLE_SSL_BYPASS: false, // Keep SSL bypass OFF for now to allow Shopee to communicate normally
+
+    // Other smaller features
+    ENABLE_LOCALE_TIMEZONE_SPOOF: true,
+    ENABLE_SCREEN_METRICS_SPOOF: true,
+    ENABLE_DEVICE_SETTINGS_SPOOF: true,
+    ENABLE_SECURE_SETTINGS_SPOOF: true,
+    ENABLE_MAC_ADDRESS_SPOOF: true,
+    ENABLE_BOOT_TIMESTAMPS_SPOOF: true,
+    ENABLE_NEW_DEVICE_MARKER: true
+};
+
 /* ========== UTILITIES ========== */
 
 var RANDOM = function() {};
@@ -64,6 +98,53 @@ function _luhn_getcheck(code) {
 
 /* ========== LOGGING FUNCTIONS ========== */
 
+var ERROR_LOG_FILE = "/sdcard/Download/fail.txt"; // Target path in Android external storage
+var ERROR_LOG_INITIALIZED = false;
+
+function _writeErrorToFile(msg) {
+    try {
+        var File = Java.use("java.io.File");
+        var FileWriter = Java.use("java.io.FileWriter");
+        var BufferedWriter = Java.use("java.io.BufferedWriter");
+        var PrintWriter = Java.use("java.io.PrintWriter");
+
+        var file = File.$new(ERROR_LOG_FILE);
+
+        // Delete the file on first write
+        if (!ERROR_LOG_INITIALIZED) {
+            if (file.exists()) {
+                file.delete();
+            }
+            ERROR_LOG_INITIALIZED = true;
+        }
+
+        var fw = FileWriter.$new(file, true);
+        var bw = BufferedWriter.$new(fw);
+        var pw = PrintWriter.$new(bw);
+
+        pw.println("[" + getTimestamp() + "] " + msg);
+
+        pw.close();
+        bw.close();
+        fw.close();
+    } catch (e) {
+        // Fallback to app's private directory if external storage is denied by SecurityException
+        if (ERROR_LOG_FILE === "/sdcard/Download/fail.txt") {
+            var context = null;
+            try {
+                var ActivityThread = Java.use('android.app.ActivityThread');
+                context = ActivityThread.currentApplication().getApplicationContext();
+            } catch (err) {}
+
+            if (context) {
+                ERROR_LOG_FILE = context.getFilesDir().getAbsolutePath() + "/fail.txt";
+                ERROR_LOG_INITIALIZED = false; // reset to clear the new file
+                _writeErrorToFile(msg); // retry
+            }
+        }
+    }
+}
+
 function logInfo(msg) {
     console.log("\x1b[36m[INFO]\x1b[0m " + msg);
 }
@@ -78,6 +159,7 @@ function logWarn(msg) {
 
 function logError(msg) {
     console.error("\x1b[31m[✗]\x1b[0m " + msg);
+    _writeErrorToFile(msg);
 }
 
 function logDebug(msg) {
@@ -91,6 +173,23 @@ function getTimestamp() {
 /* ========== DEVICE DATABASE EXTENDED ========== */
 
 var DEVICE_DATABASE = {
+    "google": {
+        "pixel_9_pro_xl": { DEVICE: "komodo", PRODUCT: "komodo", MODEL: "Pixel 9 Pro XL", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/komodo/komodo:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "komodo", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "komodo", BOOTLOADER: "komodo-1.0-12821422", RADIO: "g5400p-145620-250311-B-12999434", DEVICE_NAME: "Pixel 9 Pro XL", DEVICE_FULL_NAME: "Pixel 9 Pro XL", PRODUCT_NAME: "komodo", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "35", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_9_pro": { DEVICE: "caiman", PRODUCT: "caiman", MODEL: "Pixel 9 Pro", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/caiman/caiman:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "caiman", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "caiman", BOOTLOADER: "caiman-1.0-12821422", RADIO: "g5400p-145620-250311-B-12999434", DEVICE_NAME: "Pixel 9 Pro", DEVICE_FULL_NAME: "Pixel 9 Pro", PRODUCT_NAME: "caiman", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "35", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_9": { DEVICE: "tokay", PRODUCT: "tokay", MODEL: "Pixel 9", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/tokay/tokay:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "tokay", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "tokay", BOOTLOADER: "tokay-1.0-12821422", RADIO: "g5400p-145620-250311-B-12999434", DEVICE_NAME: "Pixel 9", DEVICE_FULL_NAME: "Pixel 9", PRODUCT_NAME: "tokay", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "35", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_9_pro_fold": { DEVICE: "comet", PRODUCT: "comet", MODEL: "Pixel 9 Pro Fold", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/comet/comet:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "comet", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "comet", BOOTLOADER: "comet-1.0-12821422", RADIO: "g5400p-145620-250311-B-12999434", DEVICE_NAME: "Pixel 9 Pro Fold", DEVICE_FULL_NAME: "Pixel 9 Pro Fold", PRODUCT_NAME: "comet", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "35", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_8_pro": { DEVICE: "husky", PRODUCT: "husky", MODEL: "Pixel 8 Pro", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/husky/husky:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "husky", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "husky", BOOTLOADER: "husky-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel 8 Pro", DEVICE_FULL_NAME: "Pixel 8 Pro", PRODUCT_NAME: "husky", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "34", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_8": { DEVICE: "shiba", PRODUCT: "shiba", MODEL: "Pixel 8", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/shiba/shiba:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "shiba", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "shiba", BOOTLOADER: "shiba-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel 8", DEVICE_FULL_NAME: "Pixel 8", PRODUCT_NAME: "shiba", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "34", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_8a": { DEVICE: "akita", PRODUCT: "akita", MODEL: "Pixel 8a", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/akita/akita:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "akita", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "akita", BOOTLOADER: "akita-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel 8a", DEVICE_FULL_NAME: "Pixel 8a", PRODUCT_NAME: "akita", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "34", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_fold": { DEVICE: "felix", PRODUCT: "felix", MODEL: "Pixel Fold", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/felix/felix:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "felix", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "felix", BOOTLOADER: "felix-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel Fold", DEVICE_FULL_NAME: "Pixel Fold", PRODUCT_NAME: "felix", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "33", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_tablet": { DEVICE: "tangorpro", PRODUCT: "tangorpro", MODEL: "Pixel Tablet", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/tangorpro/tangorpro:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "tangorpro", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "tangorpro", BOOTLOADER: "tangorpro-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel Tablet", DEVICE_FULL_NAME: "Pixel Tablet", PRODUCT_NAME: "tangorpro", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "33", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_7_pro": { DEVICE: "cheetah", PRODUCT: "cheetah", MODEL: "Pixel 7 Pro", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/cheetah/cheetah:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "cheetah", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "cheetah", BOOTLOADER: "cheetah-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel 7 Pro", DEVICE_FULL_NAME: "Pixel 7 Pro", PRODUCT_NAME: "cheetah", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "33", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_7": { DEVICE: "panther", PRODUCT: "panther", MODEL: "Pixel 7", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/panther/panther:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "panther", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "panther", BOOTLOADER: "panther-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel 7", DEVICE_FULL_NAME: "Pixel 7", PRODUCT_NAME: "panther", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "33", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_7a": { DEVICE: "lynx", PRODUCT: "lynx", MODEL: "Pixel 7a", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/lynx/lynx:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "lynx", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "lynx", BOOTLOADER: "lynx-1.0-12821422", RADIO: "g5300g-250228-250311-B-12999434", DEVICE_NAME: "Pixel 7a", DEVICE_FULL_NAME: "Pixel 7a", PRODUCT_NAME: "lynx", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "33", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_6_pro": { DEVICE: "raven", PRODUCT: "raven", MODEL: "Pixel 6 Pro", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/raven/raven:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "raven", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "raven", BOOTLOADER: "raven-1.0-12821422", RADIO: "g5123b-123456-250311-B-12999434", DEVICE_NAME: "Pixel 6 Pro", DEVICE_FULL_NAME: "Pixel 6 Pro", PRODUCT_NAME: "raven", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "31", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_6": { DEVICE: "oriole", PRODUCT: "oriole", MODEL: "Pixel 6", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/oriole/oriole:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "oriole", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "oriole", BOOTLOADER: "oriole-1.0-12821422", RADIO: "g5123b-123456-250311-B-12999434", DEVICE_NAME: "Pixel 6", DEVICE_FULL_NAME: "Pixel 6", PRODUCT_NAME: "oriole", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "31", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" },
+        "pixel_6a": { DEVICE: "bluejay", PRODUCT: "bluejay", MODEL: "Pixel 6a", MANUFACTURER: "Google", BRAND: "google", FINGERPRINT: "google/bluejay/bluejay:16/BP2A.250605.031.A2/13010374:user/release-keys", HARDWARE: "bluejay", HOST: "ab", USER: "android-build", DISPLAY: "BP2A.250605.031.A2", ID: "BP2A.250605.031.A2", TAGS: "release-keys", TYPE: "user", BOARD: "bluejay", BOOTLOADER: "bluejay-1.0-12821422", RADIO: "g5123b-123456-250311-B-12999434", DEVICE_NAME: "Pixel 6a", DEVICE_FULL_NAME: "Pixel 6a", PRODUCT_NAME: "bluejay", SDK_INT: 36, RELEASE: "16", FIRST_API_LEVEL: "31", SECURITY_PATCH: "2026-06-05", VNDK_VERSION: "36", CPU_ABI: "arm64-v8a", CPU_ABI2: "", EGL: "mali" }
+    },
     "poco": {
         "f3_android16": {
             DEVICE: "alioth", PRODUCT: "alioth", MODEL: "M2012K11AG", MANUFACTURER: "Xiaomi",
@@ -107,12 +206,15 @@ var DEVICE_DATABASE = {
 };
 
 function _getRandomDevice() {
-    // Keep a single coherent POCO profile so Build.*, ro.build.*, and
-    // Build.VERSION all describe the same Android 16 device.
+    var brands = Object.keys(DEVICE_DATABASE);
+    var randomBrand = brands[_randomInt(0, brands.length - 1)];
+    var models = Object.keys(DEVICE_DATABASE[randomBrand]);
+    var randomModel = models[_randomInt(0, models.length - 1)];
+
     return {
-        data: DEVICE_DATABASE.poco.f3_android16,
-        brand: "poco",
-        model: "f3_android16"
+        data: DEVICE_DATABASE[randomBrand][randomModel],
+        brand: randomBrand,
+        model: randomModel
     };
 }
 
@@ -247,6 +349,7 @@ function hookExtendedSystemProperties(deviceData, spoofProfile) {
             // Security Properties
             "ro.secure": "1",
             "ro.debuggable": "0",
+            "service.adb.root": "0",
             "ro.boot.verifiedbootstate": "green",
             "ro.boot.flash.locked": "1",
 
@@ -995,6 +1098,16 @@ function spoofPackageManager(spoofProfile) {
         }
 
         try {
+            var ApplicationPackageManager = Java.use("android.app.ApplicationPackageManager");
+            ApplicationPackageManager.getInstallerPackageName.overload('java.lang.String').implementation = function(Str) {
+                logDebug("ApplicationPackageManager.getInstallerPackageName(" + Str + ") -> " + installSource);
+                return installSource;
+            };
+        } catch (e) {
+            logDebug("ApplicationPackageManager.getInstallerPackageName hook skipped: " + e.message);
+        }
+
+        try {
             var getInstallSourceInfo = PackageManager.getInstallSourceInfo.overload("java.lang.String");
             getInstallSourceInfo.implementation = function(packageName) {
                 logDebug("PackageManager.getInstallSourceInfo(" + packageName + ") -> original object with spoofed getters");
@@ -1734,6 +1847,980 @@ function hookDynamicReceiverFlags() {
     logSuccess("Dynamic BroadcastReceiver flags hooked");
 }
 
+/* ========== ANTI-DEBUGGING BYPASS ========== */
+function setupAntiDebuggingBypass() {
+    logInfo("Setting up Anti-Debugging Bypass...");
+
+    // Debug.isDebuggerConnected() bypass
+    try {
+        var Debug = Java.use("android.os.Debug");
+        Debug.isDebuggerConnected.implementation = function() {
+            logDebug("Debug.isDebuggerConnected() bypassed");
+            return false;
+        };
+        logSuccess("Debug.isDebuggerConnected() hooked");
+    } catch (e) {
+        logError("Debug.isDebuggerConnected() hook failed: " + e);
+    }
+
+    // ApplicationInfo.FLAG_DEBUGGABLE bypass
+    try {
+        var ApplicationInfo = Java.use("android.content.pm.ApplicationInfo");
+        ApplicationInfo.FLAG_DEBUGGABLE.value = 0;
+        logSuccess("ApplicationInfo.FLAG_DEBUGGABLE bypassed");
+    } catch (e) {
+        logError("ApplicationInfo.FLAG_DEBUGGABLE bypass failed: " + e);
+    }
+
+    // Bypass native anti-debugging checks
+    var nativeFunctions = [
+        "ptrace",
+        "fork",
+        "strstr",
+        "strcmp"
+    ];
+
+    nativeFunctions.forEach(function(funcName) {
+        try {
+            var funcPtr = Module.findExportByName(null, funcName) || Module.findExportByName("libc.so", funcName);
+            if (funcPtr && !funcPtr.isNull()) {
+                if (funcName === "ptrace") {
+                    Interceptor.replace(funcPtr, new NativeCallback(function() {
+                        logDebug("ptrace() bypassed via replacement");
+                        return 0;
+                    }, 'int', []));
+                } else if (funcName === "fork") {
+                    Interceptor.attach(funcPtr, {
+                        onLeave: function(retval) {
+                            var pid = parseInt(retval.toString(16), 16);
+                            logDebug("Child Process PID (fork bypassed): " + pid);
+                        }
+                    });
+                } else {
+                    Interceptor.attach(funcPtr, {
+                        onEnter: function(args) {
+                            if (funcName === "strstr") {
+                                var needle = Memory.readUtf8String(args[1]);
+                                var debugStrings = ["TracerPid", "gdb", "frida", "xposed"];
+                                debugStrings.forEach(function(debugStr) {
+                                    if (needle && needle.includes(debugStr)) {
+                                        logDebug("strstr() bypassed for: " + needle);
+                                        args[1] = Memory.allocUtf8String("non_existent_string");
+                                    }
+                                });
+                            } else if (funcName === "strcmp") {
+                                var str1 = Memory.readUtf8String(args[0]);
+                                var str2 = Memory.readUtf8String(args[1]);
+                                if ((str1 && str1.includes("TracerPid")) || (str2 && str2.includes("TracerPid"))) {
+                                    logDebug("strcmp() bypassed for TracerPid");
+                                    this.bypass = true;
+                                }
+                            }
+                        },
+                        onLeave: function(retval) {
+                            if (this.bypass) {
+                                retval.replace(1);
+                                this.bypass = false;
+                            }
+                        }
+                    });
+                }
+                logSuccess(funcName + " hooked");
+            }
+        } catch (e) {
+            logError(funcName + " hook failed: " + e);
+        }
+    });
+
+    // Bypass fgets TracerPid Detection
+    try {
+        var fgetsPtr = Module.findExportByName("libc.so", "fgets");
+        if (fgetsPtr) {
+            var fgets = new NativeFunction(fgetsPtr, 'pointer', ['pointer', 'int', 'pointer']);
+            Interceptor.replace(fgetsPtr, new NativeCallback(function(buffer, size, fp) {
+                var retval = fgets(buffer, size, fp);
+                if (!retval.isNull()) {
+                    var bufstr = Memory.readUtf8String(buffer);
+                    if (bufstr && bufstr.indexOf("TracerPid:") > -1) {
+                        Memory.writeUtf8String(buffer, "TracerPid:\t0\n");
+                        logDebug("fgets() TracerPID Check bypassed");
+                    }
+                }
+                return retval;
+            }, 'pointer', ['pointer', 'int', 'pointer']));
+            logSuccess("fgets() hooked for TracerPid");
+        }
+    } catch (e) {
+        logError("fgets() hook failed: " + e);
+    }
+
+    // Native Exit & Abort Bypass
+    try {
+        var abortPtr = Module.findExportByName(null, "abort") || Module.findExportByName('libc.so', 'abort');
+        if (abortPtr) {
+            Interceptor.replace(abortPtr, new NativeCallback(function(status) {
+                logWarn("Native Abort() Replaced/Bypassed");
+                return 0;
+            }, 'int', ['int']));
+        }
+
+        var exitPtr = Module.findExportByName(null, "exit") || Module.findExportByName('libc.so', 'exit');
+        if (exitPtr) {
+            Interceptor.replace(exitPtr, new NativeCallback(function(status) {
+                logWarn("Native Exit() Replaced/Bypassed");
+                return 0;
+            }, 'int', ['int']));
+        }
+
+        var _exitPtr = Module.findExportByName('libc.so', '_exit');
+        if (_exitPtr) {
+            Interceptor.replace(_exitPtr, new NativeCallback(function(status) {
+                logWarn("Native _exit() Replaced/Bypassed");
+                return 0;
+            }, 'int', ['int']));
+        }
+
+        var killPtr = Module.findExportByName('libc.so', 'kill');
+        if (killPtr) {
+            Interceptor.replace(killPtr, new NativeCallback(function(pid, sig) {
+                logWarn("Native Kill() Replaced/Bypassed");
+                return 0;
+            }, 'int', ['int', 'int']));
+        }
+
+        var systemPtr = Module.findExportByName("libc.so", "system");
+        if (systemPtr) {
+            Interceptor.attach(systemPtr, {
+                onEnter: function(args) {
+                    var cmd = Memory.readCString(args[0]);
+                    if (cmd && cmd.indexOf("kill") !== -1) {
+                        logWarn("Bypassing native system kill command: " + cmd);
+                        var newCmd = Memory.allocUtf8String("echo bypassed");
+                        args[0] = newCmd;
+                    }
+                }
+            });
+        }
+
+        logSuccess("Native exit/abort routines bypassed");
+    } catch (e) {
+        logError("Native anti-exit bypass failed: " + e);
+    }
+
+    // Bypass Connect for Frida Ports
+    try {
+        var connectPtr = Module.findExportByName("libc.so", "connect");
+        if (connectPtr) {
+            Interceptor.attach(connectPtr, {
+                onEnter: function(args) {
+                    var family = Memory.readU16(args[1]);
+                    if (family === 2) { // AF_INET
+                        var port = Memory.readU16(args[1].add(2));
+                        port = ((port & 0xff) << 8) | (port >> 8);
+                        if (port === 27042 || port === 27043) { // Default frida ports
+                            logDebug("Bypassing connect() check for Frida port: " + port);
+                            Memory.writeU16(args[1].add(2), 0x0101); // Divert to dummy port
+                        }
+                    } else if (family === 1) { // AF_UNIX / LOCAL
+                        var memory = Memory.readByteArray(args[1], 64);
+                        var b = new Uint8Array(memory);
+                        // Check for specific unix socket signature that might detect frida
+                        if (b[2] == 0x69 && b[3] == 0xa2 && b[4] == 0x7f && b[5] == 0x00 && b[6] == 0x00 && b[7] == 0x01) {
+                            this.frida_detection = true;
+                        }
+                    }
+                },
+                onLeave: function(retval) {
+                    if (this.frida_detection) {
+                        logDebug("connect() frida_detection signature bypassed");
+                        retval.replace(-1);
+                    }
+                }
+            });
+            logSuccess("connect() hooked for Frida ports");
+        }
+    } catch (e) {
+        logError("connect() hook failed: " + e);
+    }
+
+    // Bypass timing-based detection
+    try {
+        var System = Java.use("java.lang.System");
+        var originalNanoTime = System.nanoTime;
+        var originalCurrentTimeMillis = System.currentTimeMillis;
+
+        System.nanoTime.implementation = function() {
+            var result = originalNanoTime.call(this);
+            // Modify timing to avoid detection patterns
+            return result;
+        };
+
+        System.currentTimeMillis.implementation = function() {
+            var result = originalCurrentTimeMillis.call(this);
+            // Modify timing to avoid detection patterns
+            return result;
+        };
+
+        logSuccess("Timing functions hooked");
+    } catch (e) {
+        logError("Timing bypass failed: " + e);
+    }
+
+    // Bypass process name checks
+    try {
+        var ActivityThread = Java.use("android.app.ActivityThread");
+        ActivityThread.getProcessName.implementation = function() {
+            var processName = this.getProcessName();
+            logDebug("Process name requested: " + processName);
+            return processName;
+        };
+        logSuccess("ActivityThread.getProcessName() hooked");
+    } catch (e) {
+        logError("ActivityThread.getProcessName() hook failed: " + e);
+    }
+
+    // Bypass/log exception-based debugging detection safely
+    try {
+        var Thread = Java.use("java.lang.Thread");
+        var getStackTraceOverload = Thread.getStackTrace.overload();
+
+        getStackTraceOverload.implementation = function () {
+            // Jangan log tiap stack trace, ini penyebab spam berat
+            // Jangan panggil this.getStackTrace(), karena itu manggil hook ini lagi
+            return getStackTraceOverload.call(this);
+        };
+
+        logSuccess("Thread.getStackTrace() hooked safely");
+    } catch (e) {
+        logError("Thread.getStackTrace() hook failed: " + e);
+    }
+
+    logSuccess("Android Anti-Debugging Bypass setup complete!");
+}
+
+
+/* ========== NETWORK MONITOR ========== */
+function setupNetworkMonitor() {
+    logInfo("Setting up Network Monitor...");
+
+    // Monitor HttpURLConnection
+    try {
+        var HttpURLConnection = Java.use("java.net.HttpURLConnection");
+
+        // Hook connect method
+        HttpURLConnection.connect.implementation = function() {
+            var url = this.getURL().toString();
+            var method = this.getRequestMethod();
+
+            logDebug("HttpURLConnection.connect() - URL: " + url + ", Method: " + method);
+
+            // Check for HTTP (insecure)
+            if (url.startsWith("http://")) {
+                logWarn("INSECURE HTTP CONNECTION DETECTED: " + url);
+            }
+
+            return this.connect();
+        };
+
+        // Hook getInputStream for response monitoring
+        HttpURLConnection.getInputStream.implementation = function() {
+            logDebug("HttpURLConnection.getInputStream() - Response code: " + this.getResponseCode() + ", Content type: " + this.getContentType());
+            return this.getInputStream();
+        };
+
+        logSuccess("HttpURLConnection hooks installed");
+    } catch (e) {
+        logError("HttpURLConnection hook failed: " + e);
+    }
+
+    // Monitor OkHttp3 (popular HTTP client)
+    try {
+        var OkHttpClient = Java.use("okhttp3.OkHttpClient");
+        var Request = Java.use("okhttp3.Request");
+
+        // Hook newCall method
+        OkHttpClient.newCall.implementation = function(request) {
+            logDebug("OkHttpClient.newCall() - URL: " + request.url().toString() + ", Method: " + request.method());
+
+            // Log headers
+            var headers = request.headers();
+            var headerNames = headers.names();
+            var headerIterator = headerNames.iterator();
+
+            while (headerIterator.hasNext()) {
+                var headerName = headerIterator.next();
+                var headerValue = headers.get(headerName);
+                logDebug("OkHttp Header - " + headerName + ": " + headerValue);
+
+                // Check for sensitive headers
+                var headerNameStr = String(headerName);
+                if (headerNameStr.toLowerCase().includes("authorization") ||
+                    headerNameStr.toLowerCase().includes("token") ||
+                    headerNameStr.toLowerCase().includes("key")) {
+                    logWarn("SENSITIVE HEADER DETECTED: " + headerNameStr);
+                }
+            }
+
+            return this.newCall(request);
+        };
+
+        logSuccess("OkHttpClient hooks installed");
+    } catch (e) {
+        logError("OkHttpClient hook failed: " + e);
+    }
+
+    // Monitor Volley requests
+    try {
+        var Request = Java.use("com.android.volley.Request");
+
+        Request.getUrl.implementation = function() {
+            var url = this.getUrl();
+            logDebug("Volley Request URL: " + url);
+
+            if (url.startsWith("http://")) {
+                logWarn("INSECURE VOLLEY REQUEST: " + url);
+            }
+
+            return url;
+        };
+
+        logSuccess("Volley Request hooks installed");
+    } catch (e) {
+        logDebug("Volley Request class not found, skipping hook.");
+    }
+
+    // Monitor Retrofit (if present)
+    try {
+        var Retrofit = Java.use("retrofit2.Retrofit");
+
+        Retrofit.baseUrl.implementation = function() {
+            var baseUrl = this.baseUrl();
+            logDebug("Retrofit base URL: " + baseUrl.toString());
+            return baseUrl;
+        };
+
+        logSuccess("Retrofit hooks installed");
+    } catch (e) {
+        logDebug("Retrofit class not found, skipping hook.");
+    }
+
+    // Monitor Socket connections
+    try {
+        var Socket = Java.use("java.net.Socket");
+
+        Socket.connect.overload("java.net.SocketAddress").implementation = function(endpoint) {
+            logDebug("Socket.connect() - Endpoint: " + endpoint.toString());
+            return this.connect(endpoint);
+        };
+
+        Socket.connect.overload("java.net.SocketAddress", "int").implementation = function(endpoint, timeout) {
+            logDebug("Socket.connect() with timeout - Endpoint: " + endpoint.toString() + ", Timeout: " + timeout + "ms");
+            return this.connect(endpoint, timeout);
+        };
+
+        logSuccess("Socket hooks installed");
+    } catch (e) {
+        logError("Socket hook failed: " + e);
+    }
+
+    // Monitor URL class usage
+    try {
+        var URL = Java.use("java.net.URL");
+
+        URL.$init.overload("java.lang.String").implementation = function(spec) {
+            logDebug("URL created: " + spec);
+
+            if (spec.startsWith("http://")) {
+                logWarn("INSECURE URL DETECTED: " + spec);
+            }
+
+            return this.$init(spec);
+        };
+
+        logSuccess("URL hooks installed");
+    } catch (e) {
+        logError("URL hook failed: " + e);
+    }
+
+    // Monitor DNS lookups
+    try {
+        var InetAddress = Java.use("java.net.InetAddress");
+
+        InetAddress.getByName.implementation = function(host) {
+            var result = this.getByName(host);
+            logDebug("DNS lookup for: " + host + " -> Resolved to: " + result.getHostAddress());
+            return result;
+        };
+
+        InetAddress.getAllByName.implementation = function(host) {
+            var results = this.getAllByName(host);
+            for (var i = 0; i < results.length; i++) {
+                logDebug("DNS lookup (all) for: " + host + " -> Resolved to: " + results[i].getHostAddress());
+            }
+            return results;
+        };
+
+        logSuccess("InetAddress hooks installed");
+    } catch (e) {
+        logError("InetAddress hook failed: " + e);
+    }
+
+    // Monitor WebView network activity
+    try {
+        var WebView = Java.use("android.webkit.WebView");
+
+        WebView.loadUrl.overload("java.lang.String").implementation = function(url) {
+            logDebug("WebView.loadUrl(): " + url);
+
+            if (url.startsWith("http://")) {
+                logWarn("INSECURE WEBVIEW URL: " + url);
+            }
+
+            return this.loadUrl(url);
+        };
+
+        WebView.loadUrl.overload("java.lang.String", "java.util.Map").implementation = function(url, additionalHttpHeaders) {
+            logDebug("WebView.loadUrl() with headers: " + url);
+
+            if (additionalHttpHeaders) {
+                var keySet = additionalHttpHeaders.keySet();
+                var iterator = keySet.iterator();
+
+                while (iterator.hasNext()) {
+                    var key = iterator.next();
+                    var value = additionalHttpHeaders.get(key);
+                    logDebug("WebView Additional header - " + key + ": " + value);
+                }
+            }
+
+            return this.loadUrl(url, additionalHttpHeaders);
+        };
+
+        logSuccess("WebView hooks installed");
+    } catch (e) {
+        logError("WebView hook failed: " + e);
+    }
+
+    // Monitor JSON data (often used in API calls)
+    try {
+        var JSONObject = Java.use("org.json.JSONObject");
+
+        JSONObject.put.overload("java.lang.String", "java.lang.Object").implementation = function(name, value) {
+            // Log sensitive-looking JSON keys
+            var sensitiveKeys = ["password", "token", "secret", "key", "auth", "api_key", "access_token"];
+            var lowerName = name.toLowerCase();
+
+            sensitiveKeys.forEach(function(sensitiveKey) {
+                if (lowerName.includes(sensitiveKey)) {
+                    logWarn("SENSITIVE JSON KEY DETECTED: " + name + " = " + value);
+                }
+            });
+
+            return this.put(name, value);
+        };
+
+        logSuccess("JSONObject hooks installed");
+    } catch (e) {
+        logError("JSONObject hook failed: " + e);
+    }
+
+    // Monitor HTTP response reading
+    try {
+        var BufferedReader = Java.use("java.io.BufferedReader");
+
+        var originalReadLine = BufferedReader.readLine.overload();
+        BufferedReader.readLine.overload().implementation = function() {
+            var line = originalReadLine.call(this);
+
+            if (line != null && line.length > 0) {
+                // Look for sensitive data patterns in responses
+                var sensitivePatterns = [
+                    /token["\s]*[:=]["\s]*([a-zA-Z0-9_-]+)/gi,
+                    /key["\s]*[:=]["\s]*([a-zA-Z0-9_-]+)/gi,
+                    /password["\s]*[:=]["\s]*([^"]+)/gi,
+                    /secret["\s]*[:=]["\s]*([a-zA-Z0-9_-]+)/gi
+                ];
+
+                sensitivePatterns.forEach(function(pattern) {
+                    var matches = line.match(pattern);
+                    if (matches) {
+                        logWarn("SENSITIVE DATA IN RESPONSE: " + matches[0]);
+                    }
+                });
+            }
+
+            return line;
+        };
+
+        logSuccess("BufferedReader hooks installed");
+    } catch (e) {
+        logError("BufferedReader hook failed: " + e);
+    }
+
+    logSuccess("Android Network Monitor setup complete!");
+}
+
+/* ========== ROOT DETECTION BYPASS ========== */
+function setupRootDetectionBypass() {
+    logInfo("Setting up Root Detection Bypass...");
+
+    // RootBeer library bypass
+    try {
+        var RootBeer = Java.use("com.scottyab.rootbeer.RootBeer");
+        RootBeer.isRooted.implementation = function() {
+            logDebug("RootBeer.isRooted() bypassed");
+            return false;
+        };
+        RootBeer.isRootedWithoutBusyBoxCheck.implementation = function() {
+            logDebug("RootBeer.isRootedWithoutBusyBoxCheck() bypassed");
+            return false;
+        };
+        logSuccess("RootBeer library hooked");
+    } catch (e) {
+        logDebug("RootBeer library not found");
+    }
+
+    // Generic root detection bypass
+    var rootDetectionMethods = [
+        "isDeviceRooted",
+        "isRooted",
+        "checkRoot",
+        "detectRoot",
+        "isJailbroken",
+        "hasRoot",
+        "rootCheck",
+        "checkSU"
+    ];
+
+    // Hook common class names that might contain root detection
+    var rootDetectionClasses = [
+        "com.example.rootdetection",
+        "com.security.rootcheck",
+        "com.application.security",
+        "com.app.antiroot"
+    ];
+
+    // File-based root detection bypass
+    try {
+        var File = Java.use("java.io.File");
+        File.exists.implementation = function() {
+            var path = this.getAbsolutePath();
+            var suspicious_paths = [
+                "/system/app/Superuser.apk",
+                "/sbin/su",
+                "/system/bin/su",
+                "/system/xbin/su",
+                "/data/local/xbin/su",
+                "/data/local/bin/su",
+                "/system/sd/xbin/su",
+                "/system/bin/failsafe/su",
+                "/data/local/su",
+                "/su/bin/su",
+                "/system/xbin/busybox",
+                "/system/bin/busybox",
+                "/data/local/busybox",
+                "/data/local/xbin/busybox",
+                "/system/app/SuperSU",
+                "/system/app/SuperSU.apk",
+                "/system/app/Kinguser.apk",
+                "/data/data/eu.chainfire.supersu",
+                "/data/data/com.noshufou.android.su",
+                "/data/data/com.koushikdutta.superuser",
+                "/data/data/com.thirdparty.superuser",
+                "/data/data/com.yellowes.su",
+                "/data/data/com.kingroot.kinguser",
+                "/data/data/com.kingo.root",
+                "/data/data/com.smedialink.oneclickroot",
+                "/data/data/com.zhiqupk.root.global",
+                "/data/data/com.alephzain.framaroot",
+                "/sbin/magisk",
+                "/sbin/magiskinit",
+                "/system/bin/magisk",
+                "/data/adb/magisk",
+                "/data/adb/modules",
+                "/data/adb/zygisk",
+                "/data/adb/shamiko",
+                "/data/adb/tricky_store"
+            ];
+
+            for (var i = 0; i < suspicious_paths.length; i++) {
+                if (path === suspicious_paths[i]) {
+                    logDebug("File.exists() bypassed for: " + path);
+                    return false;
+                }
+            }
+            return this.exists();
+        };
+        logSuccess("File.exists() hooked");
+    } catch (e) {
+        logError("File.exists() hook failed: " + e);
+    }
+
+    // Runtime.exec bypass
+    try {
+        var Runtime = Java.use("java.lang.Runtime");
+        Runtime.exec.overload("java.lang.String").implementation = function(command) {
+            var suspicious_commands = [
+                "su",
+                "which su",
+                "busybox",
+                "id"
+            ];
+
+            for (var i = 0; i < suspicious_commands.length; i++) {
+                if (command.includes(suspicious_commands[i])) {
+                    logDebug("Runtime.exec() bypassed for: " + command);
+                    throw new Error("Command blocked");
+                }
+            }
+            return this.exec(command);
+        };
+        logSuccess("Runtime.exec() hooked");
+    } catch (e) {
+        logError("Runtime.exec() hook failed: " + e);
+    }
+
+    // ProcessBuilder bypass
+    try {
+        var ProcessBuilder = Java.use("java.lang.ProcessBuilder");
+        ProcessBuilder.start.implementation = function() {
+            var commands = this.command();
+            var command_str = commands.toString();
+
+            if (command_str.includes("su") || command_str.includes("busybox")) {
+                logDebug("ProcessBuilder.start() bypassed for: " + command_str);
+                throw new Error("Process blocked");
+            }
+            return this.start();
+        };
+        logSuccess("ProcessBuilder.start() hooked");
+    } catch (e) {
+        logError("ProcessBuilder.start() hook failed: " + e);
+    }
+
+    // Package manager bypass
+    try {
+        var PackageManager = Java.use("android.app.ApplicationPackageManager");
+
+        var suspicious_packages = [
+            "com.noshufou.android.su",
+            "com.noshufou.android.su.elite",
+            "eu.chainfire.supersu",
+            "com.koushikdutta.superuser",
+            "com.thirdparty.superuser",
+            "com.yellowes.su",
+            "com.topjohnwu.magisk",
+            "com.kingroot.kinguser",
+            "com.kingo.root",
+            "com.smedialink.oneclickroot",
+            "com.zhiqupk.root.global",
+            "com.alephzain.framaroot",
+            "com.termux",
+            "com.oasisfeng.island",
+            "io.github.maytinhdibo.pocket",
+            "bin.mt.plus.canary:cmd"
+        ];
+
+        PackageManager.getInstalledPackages.overload('int').implementation = function(flags) {
+            var packages = this.getInstalledPackages(flags);
+            var filtered_packages = [];
+
+            for (var i = 0; i < packages.size(); i++) {
+                var package_info = packages.get(i);
+                if (!package_info) continue;
+
+                var package_name = "";
+                try {
+                    package_name = String(package_info.packageName.value);
+                } catch(e) {
+                    try { package_name = String(package_info.packageName); } catch(err) {}
+                }
+
+                var is_suspicious = false;
+                if (package_name) {
+                    for (var j = 0; j < suspicious_packages.length; j++) {
+                        if (package_name === suspicious_packages[j]) {
+                            logDebug("Hidden suspicious package in getInstalledPackages: " + package_name);
+                            is_suspicious = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!is_suspicious) {
+                    filtered_packages.push(package_info);
+                }
+            }
+
+            var ArrayList = Java.use("java.util.ArrayList");
+            var filtered_list = ArrayList.$new();
+            for (var k = 0; k < filtered_packages.length; k++) {
+                filtered_list.add(filtered_packages[k]);
+            }
+
+            return filtered_list;
+        };
+
+        PackageManager.getInstalledApplications.overload('int').implementation = function(flags) {
+            var apps = this.getInstalledApplications(flags);
+            var filtered_apps = [];
+
+            for (var i = 0; i < apps.size(); i++) {
+                var app_info = apps.get(i);
+                if (!app_info) continue;
+
+                var package_name = "";
+                try {
+                    package_name = String(app_info.packageName.value);
+                } catch(e) {
+                    try { package_name = String(app_info.packageName); } catch(err) {}
+                }
+
+                var is_suspicious = false;
+                if (package_name) {
+                    for (var j = 0; j < suspicious_packages.length; j++) {
+                        if (package_name === suspicious_packages[j]) {
+                            logDebug("Hidden suspicious package in getInstalledApplications: " + package_name);
+                            is_suspicious = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!is_suspicious) {
+                    filtered_apps.push(app_info);
+                }
+            }
+
+            var ArrayList = Java.use("java.util.ArrayList");
+            var filtered_list = ArrayList.$new();
+            for (var k = 0; k < filtered_apps.length; k++) {
+                filtered_list.add(filtered_apps[k]);
+            }
+
+            return filtered_list;
+        };
+
+        logSuccess("PackageManager.getInstalledPackages() & getInstalledApplications() hooked");
+    } catch (e) {
+        logError("PackageManager hooks failed: " + e);
+    }
+
+    // DO NOT hook System.loadLibrary / System.load / Runtime.loadLibrary0
+    // to completely prevent side-effects on Android Native Library loading that
+    // causes UnsatisfiedLinkError during JNI_OnLoad and application crashes.
+
+    logSuccess("Android Root Detection Bypass setup complete!");
+}
+
+
+/* ========== SSL PINNING BYPASS ========== */
+function setupSSLPinningBypass() {
+    logInfo("Setting up SSL Pinning Bypass...");
+
+    // Bypass X509TrustManager
+    try {
+        var X509TrustManager = Java.use('javax.net.ssl.X509TrustManager');
+        var SSLContext = Java.use('javax.net.ssl.SSLContext');
+
+        // Create a custom TrustManager that trusts everything
+        var TrustManager = Java.registerClass({
+            name: 'dev.rikka.tools.DummyTrustManager',
+            implements: [X509TrustManager],
+            methods: {
+                checkClientTrusted: function (chain, authType) { },
+                checkServerTrusted: function (chain, authType) { },
+                getAcceptedIssuers: function () { return []; }
+            }
+        });
+
+        // Hook SSLContext.init to inject our dummy TrustManager
+        var TrustManagers = [TrustManager.$new()];
+        var SSLContext_init = SSLContext.init.overload(
+            '[Ljavax.net.ssl.KeyManager;', '[Ljavax.net.ssl.TrustManager;', 'java.security.SecureRandom');
+
+        SSLContext_init.implementation = function(keyManager, trustManager, secureRandom) {
+            logDebug("Overriding SSLContext.init() to use DummyTrustManager");
+            SSLContext_init.call(this, keyManager, TrustManagers, secureRandom);
+        };
+        logSuccess("X509TrustManager bypassed");
+    } catch (e) {
+        logError("X509TrustManager bypass failed: " + e);
+    }
+
+    // Bypass OkHttp3 CertificatePinner
+    try {
+        var CertificatePinner = Java.use('okhttp3.CertificatePinner');
+        CertificatePinner.check.overload('java.lang.String', 'java.util.List').implementation = function (str) {
+            logDebug("OkHttp3 CertificatePinner.check() bypassed for: " + str);
+            return;
+        };
+        logSuccess("OkHttp3 CertificatePinner bypassed");
+    } catch (e) {
+        logDebug("OkHttp3 CertificatePinner not found or bypass failed");
+    }
+
+    // Bypass TrustManagerImpl (Android > 7)
+    try {
+        var TrustManagerImpl = Java.use('com.android.org.conscrypt.TrustManagerImpl');
+        TrustManagerImpl.verifyChain.implementation = function (untrustedChain, trustAnchorChain, host, clientAuth, ocspData, tlsSctData) {
+            logDebug("TrustManagerImpl.verifyChain() bypassed for host: " + host);
+            return untrustedChain;
+        };
+        logSuccess("TrustManagerImpl bypassed");
+    } catch (e) {
+        logDebug("TrustManagerImpl not found or bypass failed");
+    }
+
+    // Bypass HttpsURLConnection HostnameVerifier
+    try {
+        var HttpsURLConnection = Java.use("javax.net.ssl.HttpsURLConnection");
+        HttpsURLConnection.setDefaultHostnameVerifier.implementation = function(hostnameVerifier) {
+            logDebug("HttpsURLConnection.setDefaultHostnameVerifier() bypassed");
+            return;
+        };
+        HttpsURLConnection.setHostnameVerifier.implementation = function(hostnameVerifier) {
+            logDebug("HttpsURLConnection.setHostnameVerifier() bypassed");
+            return;
+        };
+        logSuccess("HttpsURLConnection HostnameVerifier bypassed");
+    } catch (e) {
+        logError("HttpsURLConnection HostnameVerifier bypass failed: " + e);
+    }
+
+    // Bypass Android WebViewClient SslErrorHandler
+    try {
+        var WebViewClient = Java.use("android.webkit.WebViewClient");
+        WebViewClient.onReceivedSslError.overload("android.webkit.WebView", "android.webkit.SslErrorHandler", "android.net.http.SslError").implementation = function(view, handler, error) {
+            logDebug("WebViewClient.onReceivedSslError() (SslErrorHandler) bypassed");
+            handler.proceed();
+        };
+        logSuccess("WebViewClient SslErrorHandler bypassed");
+    } catch (e) {
+        logDebug("WebViewClient SslErrorHandler bypass failed or not found");
+    }
+
+    try {
+        var WebViewClient2 = Java.use("android.webkit.WebViewClient");
+        WebViewClient2.onReceivedError.overload("android.webkit.WebView", "int", "java.lang.String", "java.lang.String").implementation = function(view, errorCode, description, failingUrl) {
+            logDebug("WebViewClient.onReceivedError(int) bypassed");
+        };
+
+        WebViewClient2.onReceivedError.overload("android.webkit.WebView", "android.webkit.WebResourceRequest", "android.webkit.WebResourceError").implementation = function(view, request, error) {
+            logDebug("WebViewClient.onReceivedError(WebResourceRequest) bypassed");
+        };
+        logSuccess("WebViewClient WebResourceError bypassed");
+    } catch (e) {
+        logDebug("WebViewClient WebResourceError bypass failed or not found");
+    }
+
+    // Bypass Apache Cordova WebViewClient
+    try {
+        var CordovaWebViewClient = Java.use("org.apache.cordova.CordovaWebViewClient");
+        CordovaWebViewClient.onReceivedSslError.overload("android.webkit.WebView", "android.webkit.SslErrorHandler", "android.net.http.SslError").implementation = function(view, handler, error) {
+            logDebug("CordovaWebViewClient.onReceivedSslError() bypassed");
+            handler.proceed();
+        };
+        logSuccess("CordovaWebViewClient bypassed");
+    } catch (e) {
+        logDebug("CordovaWebViewClient not found, skipping");
+    }
+
+    // Bypass Boye AbstractVerifier
+    try {
+        var BoyeAbstractVerifier = Java.use("ch.boye.httpclientandroidlib.conn.ssl.AbstractVerifier");
+        BoyeAbstractVerifier.verify.implementation = function(host, ssl) {
+            logDebug("Boye AbstractVerifier bypassed for host: " + host);
+        };
+        logSuccess("Boye AbstractVerifier bypassed");
+    } catch (e) {
+        logDebug("Boye AbstractVerifier not found, skipping");
+    }
+
+    logSuccess("SSL Pinning Bypass setup complete!");
+}
+/* ========== TRAFFIC VERIFICATION WEBVIEW LOGGER ========== */
+function hookTrafficVerifyLogger() {
+    try {
+        var WebView = Java.use("android.webkit.WebView");
+
+        WebView.loadUrl.overload("java.lang.String").implementation = function (url) {
+            if (url.indexOf("/verify/traffic") !== -1 || url.indexOf("captcha") !== -1) {
+                logWarn("[TRAFFIC_VERIFY_WEBVIEW] " + url);
+            }
+            return this.loadUrl(url);
+        };
+
+        logSuccess("Traffic verify WebView logger installed");
+    } catch (e) {
+        logError("Traffic verify WebView logger failed: " + e);
+    }
+}
+
+/* ========== WEBVIEW ERROR LOGGER ========== */
+function hookWebViewVerifyErrors() {
+    try {
+        var WebViewClient = Java.use("android.webkit.WebViewClient");
+
+        var onReceivedHttpError = WebViewClient.onReceivedHttpError.overload(
+            "android.webkit.WebView",
+            "android.webkit.WebResourceRequest",
+            "android.webkit.WebResourceResponse"
+        );
+
+        onReceivedHttpError.implementation = function (view, request, response) {
+            try {
+                var url = request.getUrl().toString();
+                var code = response.getStatusCode();
+
+                if (url.indexOf("/verify/traffic") !== -1 || url.indexOf("captcha") !== -1 || code >= 400) {
+                    logWarn("[WEBVIEW_HTTP_ERROR] " + code + " " + url);
+                    logWarn("[WEBVIEW_HTTP_REASON] " + response.getReasonPhrase());
+                }
+            } catch (e) {}
+
+            return onReceivedHttpError.call(this, view, request, response);
+        };
+
+        var onReceivedError = WebViewClient.onReceivedError.overload(
+            "android.webkit.WebView",
+            "android.webkit.WebResourceRequest",
+            "android.webkit.WebResourceError"
+        );
+
+        onReceivedError.implementation = function (view, request, error) {
+            try {
+                var url = request.getUrl().toString();
+
+                if (url.indexOf("/verify/traffic") !== -1 || url.indexOf("captcha") !== -1) {
+                    logWarn("[WEBVIEW_ERROR] " + url);
+                    logWarn("[WEBVIEW_ERROR_CODE] " + error.getErrorCode());
+                    logWarn("[WEBVIEW_ERROR_DESC] " + error.getDescription());
+                }
+            } catch (e) {}
+
+            return onReceivedError.call(this, view, request, error);
+        };
+
+        var onReceivedSslError = WebViewClient.onReceivedSslError.overload(
+            "android.webkit.WebView",
+            "android.webkit.SslErrorHandler",
+            "android.net.http.SslError"
+        );
+
+        onReceivedSslError.implementation = function (view, handler, sslError) {
+            logWarn("[WEBVIEW_SSL_ERROR] " + sslError.toString());
+
+            // Jangan proceed. Biarkan app original handle.
+            return onReceivedSslError.call(this, view, handler, sslError);
+        };
+
+        logSuccess("WebView verify error logger installed");
+    } catch (e) {
+        logError("WebView verify error logger failed: " + e);
+    }
+}
+
 /* ========== MAIN EXECUTION ========== */
 
 Java.perform(function () {
@@ -1752,71 +2839,32 @@ Java.perform(function () {
 
         console.log("\x1b[1m\x1b[33m[DEVICE SELECTED]\x1b[0m " + randomDevice.brand.toUpperCase() + " > " + randomDevice.model + "\n");
 
-        hookDynamicReceiverFlags();
-        console.log("");
-
-        deepSpoofBuildProperties(deviceData, spoofProfile);
-        console.log("");
-
-        spoofBuildVersion(deviceData);
-        console.log("");
-
-        hookExtendedSystemProperties(deviceData, spoofProfile);
-        console.log("");
-
-        hookNativeSystemProperties();
-        console.log("");
-
-        spoofLocaleTimezone(spoofProfile);
-        console.log("");
-
-        spoofScreenMetrics(spoofProfile);
-        console.log("");
-
-        hookDeviceSettings(deviceData, spoofProfile);
-        console.log("");
-
-        spoofSecureSettings(deviceData, spoofProfile);
-        console.log("");
-
-        spoofTelephony(spoofProfile);
-        console.log("");
-
-        spoofMACAddress(spoofProfile);
-        console.log("");
-
-        spoofBootTimestamps(spoofProfile);
-        console.log("");
-
-        spoofAdvertisingId(spoofProfile);
-        console.log("");
-
-        spoofAppsFlyer(spoofProfile);
-        console.log("");
-
-        spoofInstallReferrer(spoofProfile);
-        console.log("");
-
-        spoofWebViewUserAgent(deviceData, spoofProfile);
-        console.log("");
-
-        spoofNetworkInfo(spoofProfile);
-        console.log("");
-
-        spoofPlayServicesState(spoofProfile);
-        console.log("");
-
-        resetClientSessionHistory(spoofProfile);
-        console.log("");
-
-        spoofPackageManager(spoofProfile);
-        console.log("");
-
-        createNewDeviceMarker();
-        console.log("");
-
-        hideGSFID();
-        console.log("");
+        if (CONFIG.ENABLE_DYNAMIC_RECEIVER_FIX) { hookDynamicReceiverFlags(); console.log(""); }
+        if (CONFIG.ENABLE_BUILD_SPOOFING) { deepSpoofBuildProperties(deviceData, spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_BUILD_VERSION_SPOOFING) { spoofBuildVersion(deviceData); console.log(""); }
+        if (CONFIG.ENABLE_JAVA_SYSTEM_PROPERTIES) { hookExtendedSystemProperties(deviceData, spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_NATIVE_SYSTEM_PROPERTIES) { hookNativeSystemProperties(); console.log(""); }
+        if (CONFIG.ENABLE_LOCALE_TIMEZONE_SPOOF) { spoofLocaleTimezone(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_SCREEN_METRICS_SPOOF) { spoofScreenMetrics(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_DEVICE_SETTINGS_SPOOF) { hookDeviceSettings(deviceData, spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_SECURE_SETTINGS_SPOOF) { spoofSecureSettings(deviceData, spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_TELEPHONY_SPOOF) { spoofTelephony(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_MAC_ADDRESS_SPOOF) { spoofMACAddress(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_BOOT_TIMESTAMPS_SPOOF) { spoofBootTimestamps(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_ADVERTISING_ID_SPOOF) { spoofAdvertisingId(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_APPSFLYER_SPOOF) { spoofAppsFlyer(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_INSTALL_REFERRER_SPOOF) { spoofInstallReferrer(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_WEBVIEW_UA_SPOOF) { spoofWebViewUserAgent(deviceData, spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_NETWORK_INFO_SPOOF) { spoofNetworkInfo(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_PLAY_SERVICES_SPOOF) { spoofPlayServicesState(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_RESET_SESSION) { resetClientSessionHistory(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_PACKAGE_MANAGER_SPOOF) { spoofPackageManager(spoofProfile); console.log(""); }
+        if (CONFIG.ENABLE_NEW_DEVICE_MARKER) { createNewDeviceMarker(); console.log(""); }
+        if (CONFIG.ENABLE_HIDE_GSF) { hideGSFID(); console.log(""); }
+        if (CONFIG.ENABLE_ANTI_DEBUG) { setupAntiDebuggingBypass(); console.log(""); }
+        if (CONFIG.ENABLE_NETWORK_MONITOR) { setupNetworkMonitor(); console.log(""); }
+        if (CONFIG.ENABLE_ROOT_BYPASS) { setupRootDetectionBypass(); console.log(""); }
+        if (CONFIG.ENABLE_SSL_BYPASS) { setupSSLPinningBypass(); console.log(""); }
 
         console.log("\x1b[1m\x1b[32m╔════════════════════════════════════════════════════════════════╗\x1b[0m");
         console.log("\x1b[1m\x1b[32m║    ✓✓✓ REAL NEW DEVICE HOOKS INSTALLED SUCCESSFULLY ✓✓✓      ║\x1b[0m");
