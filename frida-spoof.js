@@ -1483,6 +1483,17 @@ function hookNativeSystemProperties() {
         });
     }
 
+    function safeWriteUtf8String(ptr, str) {
+        if (ptr === null || ptr.isNull()) return;
+        try {
+            var len = str.length * 2 + 1; // conservative size for utf8
+            Memory.protect(ptr, Process.pageSize, 'rwx');
+            ptr.writeUtf8String(str);
+        } catch (e) {
+            logDebug("safeWriteUtf8String failed: " + e.message);
+        }
+    }
+
     function attachPropertyRead(propertyRead) {
         Interceptor.attach(propertyRead, {
             onEnter: function(args) {
@@ -1496,10 +1507,8 @@ function hookNativeSystemProperties() {
                 if (spoofed !== undefined && this.valuePtr !== null && !this.valuePtr.isNull()) {
                     var spoofedString = String(spoofed);
                     try {
-                        if (this.namePtr !== null && !this.namePtr.isNull()) {
-                            this.namePtr.writeUtf8String(key);
-                        }
-                        this.valuePtr.writeUtf8String(spoofedString);
+                        safeWriteUtf8String(this.namePtr, key);
+                        safeWriteUtf8String(this.valuePtr, spoofedString);
                         retval.replace(spoofedString.length);
                         logDebug("native __system_property_read(" + key + ") -> " + spoofedString);
                     } catch (e) {
@@ -1514,20 +1523,27 @@ function hookNativeSystemProperties() {
         Interceptor.attach(propertyReadCallback, {
             onEnter: function(args) {
                 var propInfo = args[0];
+                if (propInfo === null || propInfo.isNull()) return;
+
                 var key = NATIVE_PROPERTY_POINTERS[propInfo.toString()];
+                if (!key) return;
+
                 var spoofed = spoofedValueForKey(key);
-                if (spoofed === undefined) {
-                    return;
-                }
+                if (spoofed === undefined) return;
 
                 try {
                     var originalCallback = args[1];
+                    if (originalCallback === null || originalCallback.isNull()) return;
+
                     var callbackFn = new NativeFunction(originalCallback, "void", ["pointer", "pointer", "pointer", "uint"]);
                     var namePtr = Memory.allocUtf8String(key);
                     var valuePtr = Memory.allocUtf8String(String(spoofed));
+
                     var replacement = new NativeCallback(function(cookie, name, value, serial) {
+                        // Forward the cookie and serial unmodified, but inject our spoofed pointers
                         callbackFn(cookie, namePtr, valuePtr, serial);
                     }, "void", ["pointer", "pointer", "pointer", "uint"]);
+
                     NATIVE_CALLBACK_REFS.push(replacement, namePtr, valuePtr);
                     args[1] = replacement;
                     logDebug("native __system_property_read_callback(" + key + ") -> " + spoofed);
